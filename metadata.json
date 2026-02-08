@@ -1,0 +1,9 @@
+{
+  "name": "Atlas DS - Intelligence Workbench",
+  "description": "Professional Data Science agent for cleaning, EDA, and production architecture. Optimized for Kaggle-level workflows.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
