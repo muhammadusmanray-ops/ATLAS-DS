@@ -9,9 +9,9 @@ const AutoEDA: React.FC = () => {
 
   const handleAnalyze = async () => {
     if (!dataInput.trim()) return;
-    
+
     setIsAnalyzing(true);
-    
+
     try {
       const prompt = `Perform a high-fidelity Automated EDA. Generate:
       1. Summary Stats
@@ -44,13 +44,13 @@ const AutoEDA: React.FC = () => {
     <div className="h-full flex flex-col p-6 overflow-y-auto bg-[#020203]">
       <div className="max-w-6xl mx-auto w-full space-y-8">
         <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.2)]">
-                <i className="fa-solid fa-crosshairs text-2xl"></i>
-            </div>
-            <div>
-                <h2 className="text-2xl font-black orbitron italic text-white">INTEL_SCAN</h2>
-                <p className="text-[10px] text-gray-500 orbitron tracking-[0.3em] uppercase">High-Fidelity Statistical EDA</p>
-            </div>
+          <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.2)]">
+            <i className="fa-solid fa-crosshairs text-2xl"></i>
+          </div>
+          <div>
+            <h2 className="text-2xl font-black orbitron italic text-white">INTEL_SCAN</h2>
+            <p className="text-[10px] text-gray-500 orbitron tracking-[0.3em] uppercase">High-Fidelity Statistical EDA</p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -69,9 +69,8 @@ const AutoEDA: React.FC = () => {
             <button
               onClick={handleAnalyze}
               disabled={isAnalyzing || !dataInput.trim()}
-              className={`w-full py-4 rounded-2xl orbitron font-black text-xs tracking-widest flex items-center justify-center gap-3 transition-all ${
-                  isAnalyzing ? 'bg-gray-800 text-gray-500' : 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-xl shadow-indigo-900/20'
-              }`}
+              className={`w-full py-4 rounded-2xl orbitron font-black text-xs tracking-widest flex items-center justify-center gap-3 transition-all ${isAnalyzing ? 'bg-gray-800 text-gray-500' : 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-xl shadow-indigo-900/20'
+                }`}
             >
               {isAnalyzing ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-radar"></i>}
               {isAnalyzing ? 'RECONNAISSANCE IN PROGRESS...' : 'GENERATE EDA REPORT'}
@@ -80,28 +79,28 @@ const AutoEDA: React.FC = () => {
 
           <div className="lg:col-span-8 bg-black/40 border border-white/5 rounded-2xl flex flex-col max-h-[600px]">
             <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center">
-                 <span className="text-[9px] font-black text-gray-400 orbitron tracking-widest uppercase">Analysis Output Console</span>
-                 {report && (
-                     <button 
-                        onClick={handleDownload}
-                        className="text-[9px] text-[#00f3ff] font-bold uppercase tracking-widest hover:text-white transition-colors"
-                     >
-                         <i className="fa-solid fa-download mr-2"></i>Download Report
-                     </button>
-                 )}
+              <span className="text-[9px] font-black text-gray-400 orbitron tracking-widest uppercase">Analysis Output Console</span>
+              {report && (
+                <button
+                  onClick={handleDownload}
+                  className="text-[9px] text-[#00f3ff] font-bold uppercase tracking-widest hover:text-white transition-colors"
+                >
+                  <i className="fa-solid fa-download mr-2"></i>Download Report
+                </button>
+              )}
             </div>
             <div className="p-8 font-mono text-[11px] leading-relaxed text-gray-400 overflow-y-auto custom-scrollbar flex-1">
-                {report ? (
+              {report ? (
                 <div className="animate-in fade-in duration-1000">
-                    <h3 className="text-[#00f3ff] mb-4 orbitron text-xs font-bold uppercase tracking-widest">>>> Strategic Insights Output</h3>
-                    <div className="whitespace-pre-wrap">{report}</div>
+                  <h3 className="text-[#00f3ff] mb-4 orbitron text-xs font-bold uppercase tracking-widest">{" >>> "} Strategic Insights Output</h3>
+                  <div className="whitespace-pre-wrap">{report}</div>
                 </div>
-                ) : (
+              ) : (
                 <div className="h-full flex flex-col items-center justify-center opacity-10 space-y-6">
-                    <i className="fa-solid fa-chart-line text-9xl"></i>
-                    <p className="orbitron uppercase tracking-widest">Waiting for Signal...</p>
+                  <i className="fa-solid fa-chart-line text-9xl"></i>
+                  <p className="orbitron uppercase tracking-widest">Waiting for Signal...</p>
                 </div>
-                )}
+              )}
             </div>
           </div>
         </div>
