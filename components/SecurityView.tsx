@@ -26,22 +26,22 @@ const SecurityView: React.FC = () => {
                 setAuditHistory(Array.isArray(parsed) ? parsed : []);
             } else {
                 const initial = [
-                    { id: 1, action: 'SYSTEM_BOOT', status: 'SUCCESS', time: new Date().toLocaleTimeString(), ip: 'LOCAL' },
-                    { id: 2, action: 'IDENTITY_VAULT', status: 'SECURED', time: new Date().toLocaleTimeString(), ip: 'LOCAL' }
+                    { id: crypto.randomUUID(), action: 'SYSTEM_BOOT', status: 'SUCCESS', time: new Date().toLocaleTimeString(), ip: 'LOCAL' },
+                    { id: crypto.randomUUID(), action: 'IDENTITY_VAULT', status: 'SECURED', time: new Date().toLocaleTimeString(), ip: 'LOCAL' }
                 ];
                 setAuditHistory(initial);
                 localStorage.setItem('atlas_security_audit', JSON.stringify(initial));
             }
         } catch (e) {
             console.warn("Security Audit Corrupted. Resetting...");
-            const initial = [{ id: Date.now(), action: 'RESET_PROTOCOL', status: 'SUCCESS', time: new Date().toLocaleTimeString(), ip: 'LOCAL' }];
+            const initial = [{ id: crypto.randomUUID(), action: 'RESET_PROTOCOL', status: 'SUCCESS', time: new Date().toLocaleTimeString(), ip: 'LOCAL' }];
             setAuditHistory(initial);
         }
     };
 
     const addAuditLog = (action: string, status: string) => {
         const newEntry = {
-            id: Date.now(),
+            id: crypto.randomUUID(),
             action,
             status,
             time: new Date().toLocaleTimeString(),
@@ -49,7 +49,7 @@ const SecurityView: React.FC = () => {
         };
         setAuditHistory(prev => {
             const current = Array.isArray(prev) ? prev : [];
-            const updated = [newEntry, ...current].slice(0, 12);
+            const updated = [newEntry, ...current].slice(0, 10);
             localStorage.setItem('atlas_security_audit', JSON.stringify(updated));
             return updated;
         });
@@ -96,7 +96,6 @@ const SecurityView: React.FC = () => {
 
     return (
         <div className="h-full flex flex-col p-8 bg-[#020204] overflow-y-auto relative selection:bg-[#76b900] selection:text-black font-sans">
-            {/* RESTORING ORIGINAL GREEN for Readability */}
             <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
                 style={{ backgroundImage: 'linear-gradient(#76b900 1px, transparent 1px), linear-gradient(90deg, #76b900 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
 
@@ -166,7 +165,6 @@ const SecurityView: React.FC = () => {
                                         <span className="text-[9px] font-black text-[#76b900] orbitron uppercase tracking-widest">Link_Encryption_Enabled</span>
                                     </div>
                                 </div>
-                                {/* High Contrast Text for Readability */}
                                 <div className="h-56 bg-black/80 rounded-[40px] p-8 border border-white/5 font-mono text-[11px] text-[#76b900] overflow-y-auto custom-scrollbar shadow-inner leading-loose backdrop-blur-xl">
                                     {(logs || []).map((log, i) => (
                                         <div key={i} className="mb-3 flex gap-5 group/log hover:text-white transition-colors">
@@ -176,35 +174,6 @@ const SecurityView: React.FC = () => {
                                     ))}
                                     {isScanning && <div className="animate-pulse text-[#76b900] mt-4 font-black tracking-widest italic flex items-center gap-2"><i className="fa-solid fa-spinner fa-spin"></i> BUFFERING_SECTORS...</div>}
                                 </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white/5 border border-white/10 rounded-[48px] overflow-hidden backdrop-blur-3xl shadow-2xl relative">
-                            <div className="px-10 py-8 border-b border-white/5 bg-white/[0.02] flex justify-between items-center relative z-10">
-                                <h3 className="text-[11px] font-black text-white orbitron uppercase tracking-[0.4em]">Historical_Handshake_Audit</h3>
-                                <span className="text-[9px] text-gray-600 font-black uppercase font-mono tracking-widest">LIFO_T-24H</span>
-                            </div>
-                            <div className="overflow-x-auto relative z-10">
-                                <table className="w-full text-left text-[12px]">
-                                    <thead className="text-gray-500 bg-black/60 font-black orbitron text-[10px]">
-                                        <tr>
-                                            <th className="px-10 py-6 uppercase tracking-[0.4em]">Action_ID</th>
-                                            <th className="px-10 py-6 uppercase tracking-[0.4em]">Status</th>
-                                            <th className="px-10 py-6 uppercase tracking-[0.4em]">Sync_Temporal</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="text-gray-300 divide-y divide-white/5 font-sans">
-                                        {(Array.isArray(auditHistory) ? auditHistory : []).map(item => (
-                                            <tr key={item.id} className="hover:bg-[#76b900]/5 group transition-all">
-                                                <td className="px-10 py-6 font-mono text-[#76b900]/60 group-hover:text-[#76b900] tracking-widest font-black uppercase transition-colors">{item.action}</td>
-                                                <td className="px-10 py-6">
-                                                    <span className="px-4 py-1.5 rounded-full bg-[#76b900]/10 text-[#76b900] text-[9px] font-black border border-[#76b900]/20 orbitron tracking-widest">{item.status}</span>
-                                                </td>
-                                                <td className="px-10 py-6 text-gray-600 font-mono italic font-bold">{item.time}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
                             </div>
                         </div>
                     </div>
@@ -228,6 +197,40 @@ const SecurityView: React.FC = () => {
                                     <span>{isScanning ? 'UPLINKING...' : 'FORCE_SCAN'}</span>
                                 </div>
                             </button>
+                        </div>
+
+                        {/* COMPACT AUDIT PANEL - MOVED TO SIDEBAR */}
+                        <div className="bg-white/5 border border-white/10 rounded-[40px] overflow-hidden backdrop-blur-3xl shadow-2xl relative">
+                            <div className="px-8 py-6 border-b border-white/5 bg-white/[0.02] flex justify-between items-center relative z-10">
+                                <h3 className="text-[10px] font-black text-white orbitron uppercase tracking-[0.3em]">Handshake_Audit</h3>
+                                <span className="text-[8px] text-gray-600 font-bold uppercase tracking-widest">LIFO_v5</span>
+                            </div>
+                            <div className="max-h-[350px] overflow-y-auto custom-scrollbar relative z-10">
+                                <table className="w-full text-left text-[11px]">
+                                    <thead className="text-gray-500 bg-black/60 font-black orbitron text-[8px] sticky top-0 z-20">
+                                        <tr>
+                                            <th className="px-6 py-4 uppercase tracking-widest">Action</th>
+                                            <th className="px-6 py-4 uppercase tracking-widest">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="text-gray-300 divide-y divide-white/5 font-sans">
+                                        {(Array.isArray(auditHistory) ? auditHistory : []).map((item, idx) => (
+                                            <tr key={`${item.id}-${idx}`} className="hover:bg-[#76b900]/5 group transition-all">
+                                                <td className="px-6 py-4">
+                                                    <div className="font-mono text-[#76b900]/60 group-hover:text-[#76b900] tracking-tight font-black uppercase text-[10px]">{item.action}</div>
+                                                    <div className="text-[8px] text-gray-600 font-mono mt-0.5">{item.time}</div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className={`px-2 py-1 rounded border text-[8px] font-black orbitron tracking-tighter ${item.status === 'SUCCESS' || item.status === 'OPTIMAL' || item.status === 'SECURED'
+                                                        ? 'bg-[#76b900]/10 text-[#76b900] border-[#76b900]/20'
+                                                        : 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'
+                                                        }`}>{item.status}</span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
 
                         <div className="bg-red-500/[0.03] border border-red-500/20 rounded-[48px] p-10 backdrop-blur-3xl shadow-2xl relative overflow-hidden group">

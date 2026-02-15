@@ -58,7 +58,14 @@ export const geminiService = {
     }
   },
 
-  async chat(message: string) { return this.generateContent(message); },
+  async chat(message: string) {
+    try {
+      return await llmAdapter.chat(message, SYSTEM_PROMPT);
+    } catch (error) {
+      console.error("❌ CHAT_NODE_OFFLINE:", error);
+      return { text: "SYSTEM_CRITICAL: Primary Logic Node Offline." };
+    }
+  },
 
   async fastChat(message: string) {
     return { text: await this.generateContent(message) };

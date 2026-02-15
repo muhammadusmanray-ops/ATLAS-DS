@@ -54,6 +54,13 @@ class KaggleService {
             }
 
             const data = await response.json();
+
+            // If API returns empty (due to auth failure or no results), use fallback
+            if (!data || data.length === 0) {
+                console.warn('API returned empty set, using fallback missions');
+                return this.getFallbackCompetitions();
+            }
+
             return this.transformCompetitions(data);
         } catch (error) {
             console.error('Kaggle API Error:', error);

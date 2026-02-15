@@ -16,7 +16,7 @@ class LLMAdapter {
     private config: LLMConfig = {
         provider: 'openai-compatible',
         apiKey: FALLBACK_GROQ[0],
-        model: 'meta-llama/llama-4-maverick-17b-128e-instruct',
+        model: 'llama-3.3-70b-versatile',
         baseUrl: 'https://api.groq.com/openai/v1'
     };
 

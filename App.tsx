@@ -314,6 +314,7 @@ const App: React.FC = () => {
             {currentView === AppView.SYNTHETIC && <SyntheticGenerator />}
             {currentView === AppView.AUTO_EDA && <AutoEDA />}
             {currentView === AppView.DEVOPS && <DevOpsHub />}
+            {currentView === AppView.DEEP_RESEARCH && <DeepResearch />}
           </Suspense>
         </div>
         <TacticalAssistant currentView={currentView} />
