@@ -97,12 +97,15 @@ const NotebookView: React.FC = () => {
       let output = '';
       if (executionMode === 'real') {
         // REAL PYTHON EXECUTION
-        const response = await fetch('http://localhost:3001/api/execute-python', {
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const PROXY_URL = isLocal ? 'http://localhost:3001' : '';
+
+        const response = await fetch(`${PROXY_URL}/api/execute-python`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             code: cell.content,
-            workingDir: process.cwd()
+            workingDir: isLocal ? 'local-env' : '/tmp'
           })
         });
 
