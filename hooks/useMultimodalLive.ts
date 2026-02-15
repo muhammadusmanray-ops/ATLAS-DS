@@ -163,7 +163,15 @@ export const useMultimodalLive = (sessionId: string | null, user: any, setGlobal
     const connect = useCallback(async () => {
         // Load Keys from Storage
         const savedKeys = await db.getSettings('voice_keys');
-        voiceKeysRef.current = savedKeys || [];
+        let keys = savedKeys || [];
+
+        // Fallback to .env if empty
+        if (keys.length === 0) {
+            const envKey = (import.meta as any).env.VITE_GEMINI_VOICE_KEY_1;
+            if (envKey) keys = [envKey];
+        }
+
+        voiceKeysRef.current = keys;
 
         if (voiceKeysRef.current.length === 0) {
             setErrorMsg("NO VOICE NODES: Configure Gemini Keys in Settings.");

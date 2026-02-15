@@ -8,8 +8,8 @@ export interface LLMConfig {
     model: string;
 }
 
-const FALLBACK_GROQ = [''];
-const COMMANDER_GEMINI = ['']; // Priority Node
+const FALLBACK_GROQ = [(import.meta as any).env.VITE_GROQ_LOGIC_KEY_1 || ''];
+const COMMANDER_GEMINI = [(import.meta as any).env.VITE_GEMINI_LOGIC_KEY_1 || '']; // Priority Node
 
 class LLMAdapter {
     private static instance: LLMAdapter;
