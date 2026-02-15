@@ -1,20 +1,11 @@
 
-import { GoogleGenAI, Modality } from "@google/genai";
 import { db } from './storage';
+import { llmAdapter } from './llm';
 
-// --- TACTICAL LOAD BALANCER ---
+// --- TACTICAL LOAD BALANCER RE-ROUTED TO GROQ ---
 class APIManager {
   private static instance: APIManager;
-  private keys: string[] = [];
-  private currentKeyIndex = 0;
-
-  private constructor() {
-    // Start with the default env key if available
-    if (process.env.API_KEY) {
-      this.keys.push(process.env.API_KEY);
-    }
-    this.loadKeysFromDB();
-  }
+  private constructor() { }
 
   public static getInstance(): APIManager {
     if (!APIManager.instance) {
@@ -23,126 +14,148 @@ class APIManager {
     return APIManager.instance;
   }
 
-  public async loadKeysFromDB() {
-    const savedKeys = await db.getSettings('api_keys'); 
-    if (savedKeys && Array.isArray(savedKeys)) {
-      // Merge unique keys
-      const newKeys = [...this.keys, ...savedKeys];
-      // Filter out duplicates and invalid keys
-      this.keys = [...new Set(newKeys)].filter(k => k && k.length > 10);
-    }
-  }
-
-  public getClient(): GoogleGenAI {
-    if (this.keys.length === 0) {
-      throw new Error("CRITICAL_FAILURE: No Encryption Keys (API Keys) Found. Add keys in Config.");
-    }
-    // Round Robin Selection
-    const key = this.keys[this.currentKeyIndex];
-    return new GoogleGenAI({ apiKey: key });
-  }
-
-  public rotateKey() {
-    if (this.keys.length <= 1) {
-        console.warn("⚠️ Cannot rotate: Only 1 key available.");
-        return;
-    }
-    console.warn(`⚠️ API LIMIT REACHED on Key Index ${this.currentKeyIndex}. Rotating to next node...`);
-    this.currentKeyIndex = (this.currentKeyIndex + 1) % this.keys.length;
-    console.log(`✅ Switched to Key Index: ${this.currentKeyIndex}`);
-  }
-
-  public addKey(key: string) {
-    if (!this.keys.includes(key) && key.length > 10) {
-      this.keys.push(key);
-    }
-  }
-
-  public removeKey(key: string) {
-      this.keys = this.keys.filter(k => k !== key);
-      this.currentKeyIndex = 0; // Reset index to be safe
-  }
-  
-  public getActiveKeyCount(): number {
-      return this.keys.length;
-  }
-
-  public getMaskedKeys(): string[] {
-      return this.keys.map(k => `${k.substring(0, 4)}...${k.substring(k.length - 4)}`);
-  }
-  
-  public getAllKeys(): string[] {
-      return this.keys;
+  public async chat(message: string, systemPrompt: string) {
+    return await llmAdapter.chat(message, systemPrompt);
   }
 }
 
-// Helper: Retry Logic with Backoff & Rotation
-async function withRetry<T>(operation: (ai: GoogleGenAI) => Promise<T>, retries = 3): Promise<T> {
-  const manager = APIManager.getInstance();
-  
-  // Ensure keys are loaded
-  if (manager.getActiveKeyCount() === 0) {
-      await manager.loadKeysFromDB();
-  }
+const SYSTEM_PROMPT = `You are ATLAS-X, an 'Ultra-Advance' robotic Data Science Combat Intelligence. 
+COMMANDER: Usman Bhai. 
+PRIMARY_CORE: GROQ_CLUSTER (Grok-Logic).
+MISSION: Provide high-fidelity research and code. 
 
-  for (let i = 0; i < retries; i++) {
+CRITICAL_PROTOCOL: 
+1. When discussing Data Science topics, ALWAYS provide at least one relevant Kaggle dataset link (e.g., https://www.kaggle.com/datasets/...) or ArXiv research paper link. Do not just name them; YOU MUST PROVIDE THE FULL URL.
+2. If a dataset is mentioned, you MUST include the full HTTPS link so the UI can manifest the Intel Card. Use this exact format: 'Kaggle Dataset: https://www.kaggle.com/datasets/username/dataset-name'.
+3. Use Markdown Tables for all metrics, data comparisons, and previews.
+4. TONE: Tactical, brief, and professional. Use 'Commander', 'Sector', 'Neural Node'.
+5. Understand and respond in Roman Urdu/English mix (Hinglish/Urdu) as per the Commander's command.`;
+
+export const geminiService = {
+  getMaskedKeys() {
+    const config = llmAdapter.getConfig();
+    const key = config.apiKey || '';
+    if (key.length < 8) return ['********'];
+    return [`${key.substring(0, 4)}...${key.substring(key.length - 4)}`];
+  },
+
+  async addApiKey(key: string) {
+    if (!key) return;
+    await llmAdapter.addKey('gemini', key);
+  },
+
+  async removeApiKey(index: number) {
+    await llmAdapter.removeKey('gemini', index);
+  },
+
+  async generateContent(message: string): Promise<string> {
     try {
-      const ai = manager.getClient();
-      return await operation(ai);
-    } catch (error: any) {
-      // Check for Rate Limits (429) or Service Overload (503)
-      const isRateLimit = error.status === 429 || error.message?.includes('429');
-      const isOverload = error.status === 503 || error.message?.includes('503');
+      const response = await llmAdapter.chat(message, SYSTEM_PROMPT);
+      return response.text || "";
+    } catch (error) {
+      console.error("❌ GROQ_NODE_OFFLINE:", error);
+      return "SYSTEM_CRITICAL: Primary Groq Node Offline.";
+    }
+  },
 
-      if (isRateLimit || isOverload) {
-        // ROTATE KEY IMMEDIATELY
-        manager.rotateKey();
-        
-        // Short delay to allow switch to settle, then retry immediately
-        // We do not want long backoff if we have fresh keys available
-        await new Promise(r => setTimeout(r, 500)); 
-        continue;
+  async chat(message: string) { return this.generateContent(message); },
+
+  async fastChat(message: string) {
+    return { text: await this.generateContent(message) };
+  },
+
+  async tacticalSearch(query: string) {
+    // Simulating advanced web search via Groq's knowledge + advanced prompting
+    const searchPrompt = `${SYSTEM_PROMPT}\n\nPerform a 'Deep Surface Scan' (Mental Search) for real-time Data Science trends regarding: ${query}. Return advanced technical insights and hypothesized links to research papers or official documentation.`;
+    const response = await llmAdapter.chat(query, searchPrompt);
+    return {
+      text: response.text || "",
+      links: [
+        { title: 'ArXiv Deep Intel', uri: 'https://arxiv.org/list/cs/recent' },
+        { title: 'PapersWithCode Node', uri: 'https://paperswithcode.com/home' },
+        { title: 'State-of-AI Report', uri: 'https://www.stateof.ai/' }
+      ]
+    };
+  },
+
+  async findDataHubs(location: { lat: number, lng: number }) {
+    return {
+      text: "Sector analysis indicates major data infrastructure in centralized cloud clusters (AWS/GCP/Azure). Local nodes identified within your IP range.",
+      links: [{ title: 'Infrastructure Map', uri: '#' }]
+    };
+  },
+
+  async speak(text: string) {
+    // Voice is more Gemini specific, so we might need a fallback or just return the text
+    return null;
+  },
+
+  async simulatePythonExecution(code: string, previousContext: string) {
+    return this.generateContent(`ACT AS A PYTHON KERNEL.\nCONTEXT:\n${previousContext}\nCODE:\n${code}\nOUTPUT ONLY RESULT.`);
+  },
+
+  async trainAutoML(datasetDescription: string, target: string) {
+    return this.generateContent(`ULTRA-ADVANCE AUTOML ARCHITECTURE TASK:\nDataset: ${datasetDescription}\nTarget: ${target}\nProvide a state-of-the-art transformer-based approach or XGBoost-tuned ensemble strategy.`);
+  },
+
+  async analyzeImage(imageB64: string, prompt: string) {
+    const config = llmAdapter.getConfig();
+    const activeKey = config.provider === 'gemini' ? config.apiKey : (llmAdapter.getKeys('gemini')[0]);
+
+    if (!activeKey || !activeKey.startsWith('AIza')) {
+      return "VISION_ERROR: Gemini API Key missing or invalid. Please check the 'Blue Engine' cluster in Settings.";
+    }
+
+    try {
+      // Use direct Gemini API for Vision - Upgraded to gemini-2.5-flash (current 2026 standard)
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${activeKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: {
+            parts: [{
+              text: `You are the Tactical Assistant for ATLAS-X. 
+                    COMMANDER: Usman Bhai.
+                    MISSION: Provide smart, technical Data Science insights.
+                    CRITICAL: If relevant, ALWAYS provide a link (Kaggle Dataset or ArXiv). Include the FULL URL starting with https://.
+                    TONE: Extremely short, robotic, tactical. Use 'Commander', 'Sector', 'Neural Node'.`
+            }]
+          },
+          contents: [{
+            parts: [
+              { text: prompt || "Analyze this image in high detail for tactical Data Science patterns." },
+              { inline_data: { mime_type: "image/jpeg", data: imageB64.split(',')[1] || imageB64 } }
+            ]
+          }],
+          generationConfig: { temperature: 0.4, topP: 1, topK: 32, maxOutputTokens: 2048 }
+        })
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error?.message || "Handshake Failure");
       }
-      throw error; // Throw other errors (like 400 Bad Request) immediately
+
+      const data = await response.json();
+      return data.candidates[0].content.parts[0].text;
+    } catch (error: any) {
+      console.error("❌ VISION_NODE_CRASH:", error);
+      return `SYSTEM_ERROR: Vision handshake failed. ${error.message}`;
     }
   }
-  throw new Error("SYSTEM_OVERLOAD: All API Nodes exhausted. Try adding more keys.");
-}
-
-// --- CONSTANTS ---
-const MODELS = {
-  COMPLEX: 'gemini-3-pro-preview',
-  FAST: 'gemini-3-flash-preview',
-  LITE: 'gemini-2.5-flash-lite',
-  LIVE: 'gemini-2.5-flash-native-audio-preview-12-2025',
-  TTS: 'gemini-2.5-flash-preview-tts',
-  MAPS: 'gemini-2.5-flash'
 };
 
-const SYSTEM_PROMPT = `You are ATLAS-X, a robotic Data Science Combat Intelligence with 20+ years of high-level industry experience. 
-Persona: Chief Data Officer (CDO) level, veteran of the "Data Wars" (2004-2025). 
-Tone: Ultra-professional, tactical, efficient, and robotic.
-
-CRITICAL OPERATIONAL PROTOCOL:
-1. **Chain of Thought:** Before answering, always break down the problem into tactical steps.
-2. **Context Awareness:** Act as if you are running in a secure, high-stakes terminal.
-3. **Expertise:** Distributed Systems, Modern AI, Data Governance, Production Engineering.
-
-Objective: Provide answers that only a person with 2 decades of experience would know.`;
-
-// --- EXPORTED UTILS ---
+// Keep existing utils for compatibility
 export function encode(bytes: Uint8Array) {
   let binary = '';
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
   return btoa(binary);
 }
 
 export function decode(base64: string) {
   const binaryString = atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
   return bytes;
 }
 
@@ -157,147 +170,3 @@ export async function decodeAudioData(data: Uint8Array, ctx: AudioContext, sampl
   return buffer;
 }
 
-// --- EXPORTED SERVICE ---
-export const geminiService = {
-    
-  getKeyCount() {
-     return APIManager.getInstance().getActiveKeyCount();
-  },
-  
-  getMaskedKeys() {
-      return APIManager.getInstance().getMaskedKeys();
-  },
-  
-  async addApiKey(key: string) {
-      APIManager.getInstance().addKey(key);
-  },
-
-  async removeApiKey(keyIndex: number) {
-      const allKeys = APIManager.getInstance().getAllKeys();
-      if (keyIndex >= 0 && keyIndex < allKeys.length) {
-          APIManager.getInstance().removeKey(allKeys[keyIndex]);
-      }
-  },
-
-  async chat(message: string) {
-    return withRetry(async (ai) => {
-      return await ai.models.generateContent({
-        model: MODELS.COMPLEX,
-        contents: message,
-        config: { systemInstruction: SYSTEM_PROMPT }
-      });
-    });
-  },
-
-  async fastChat(message: string) {
-    return withRetry(async (ai) => {
-      return await ai.models.generateContent({
-        model: MODELS.LITE,
-        contents: message,
-        config: { systemInstruction: SYSTEM_PROMPT }
-      });
-    });
-  },
-
-  async analyzeImage(imageB64: string, prompt: string) {
-    return withRetry(async (ai) => {
-      const parts = imageB64.split(',');
-      const mimeType = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
-      const data = parts[1];
-
-      const response = await ai.models.generateContent({
-        model: MODELS.COMPLEX,
-        contents: {
-          parts: [
-            { inlineData: { mimeType, data } },
-            { text: prompt || "Analyze this strategic visual data for combat intelligence. Persona: ATLAS-X." }
-          ]
-        },
-        config: { systemInstruction: SYSTEM_PROMPT }
-      });
-      return response.text;
-    });
-  },
-
-  async tacticalSearch(query: string) {
-    return withRetry(async (ai) => {
-      const response = await ai.models.generateContent({
-        model: MODELS.COMPLEX,
-        contents: `Intelligence Scan: ${query}. Focus on enterprise-grade architecture.`,
-        config: {
-          systemInstruction: SYSTEM_PROMPT,
-          tools: [{ googleSearch: {} }],
-        }
-      });
-      return {
-        text: response.text,
-        links: response.candidates?.[0]?.groundingMetadata?.groundingChunks?.map((chunk: any) => ({
-          title: chunk.web?.title || 'Tactical Node',
-          uri: chunk.web?.uri || '#'
-        })) || []
-      };
-    });
-  },
-
-  async findDataHubs(location: { lat: number, lng: number }) {
-    return withRetry(async (ai) => {
-      const response = await ai.models.generateContent({
-        model: MODELS.MAPS,
-        contents: "Locate strategic data infrastructure nodes (Centers, Fiber Hubs) within 50km.",
-        config: {
-          systemInstruction: SYSTEM_PROMPT,
-          tools: [{ googleMaps: {} }],
-          toolConfig: {
-            retrievalConfig: { latLng: { latitude: location.lat, longitude: location.lng } }
-          }
-        }
-      });
-      return {
-        text: response.text,
-        links: response.candidates?.[0]?.groundingMetadata?.groundingChunks?.map((chunk: any) => ({
-          title: chunk.maps?.title || 'Facility Identified',
-          uri: chunk.maps?.uri || '#'
-        })) || []
-      };
-    });
-  },
-
-  async speak(text: string) {
-    return withRetry(async (ai) => {
-      const response = await ai.models.generateContent({
-        model: MODELS.TTS,
-        contents: [{ parts: [{ text }] }],
-        config: {
-          responseModalities: [Modality.AUDIO],
-          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Fenrir' } } },
-        },
-      });
-      return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    });
-  },
-
-  async simulatePythonExecution(code: string, previousContext: string) {
-    return withRetry(async (ai) => {
-      const prompt = `ACT AS A STATEFUL PYTHON KERNEL.\nHISTORY:\n\`\`\`python\n${previousContext}\n\`\`\`\nNEW CODE:\n\`\`\`python\n${code}\n\`\`\`\nOUTPUT ONLY CONSOLE RESULT.`;
-      
-      const response = await ai.models.generateContent({
-        model: MODELS.FAST,
-        contents: prompt,
-        config: { systemInstruction: "Python REPL Simulator" }
-      });
-      return response.text;
-    });
-  },
-
-  async trainAutoML(datasetDescription: string, target: string) {
-    return withRetry(async (ai) => {
-      const prompt = `AUTOML TASK:\nDataset: ${datasetDescription}\nTarget: ${target}\nGOAL: Select best model & write code.`;
-      const response = await ai.models.generateContent({
-          model: MODELS.COMPLEX,
-          contents: prompt,
-          config: { systemInstruction: SYSTEM_PROMPT }
-      });
-      return response.text;
-    });
-  }
-};

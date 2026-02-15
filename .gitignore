@@ -18,5 +18,23 @@ build
 .env.test.local
 .env.production.local
 
+# Database/Logs
+*.log
+*.txt
+*.db
+groq_models.json
+cctv_data.csv
+
+# Scripts/Tests
+check_*.js
+test*.js
+test_*.js
+*.py
+api/
+server/
+scripts/
+android/
+ios/
+
 # MacOS
 .DS_Store

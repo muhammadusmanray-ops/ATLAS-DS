@@ -8,180 +8,238 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   const metrics = [
-    { label: 'Models Deployed', value: '12', trend: '+2', color: 'text-[#00f3ff]' },
-    { label: 'Data Vectors', value: '8.4M', trend: '+12%', color: 'text-[#ff00ff]' },
-    { label: 'Compute Time', value: '142h', trend: '-5%', color: 'text-yellow-400' },
-    { label: 'Accuracy Score', value: '94.2%', trend: '+0.8%', color: 'text-green-400' },
+    { label: 'Neural Throughput', value: '42.8 GB/s', trend: '+5.4', color: 'text-[#76b900]', glow: 'shadow-[#76b900]/20' },
+    { label: 'Intelligence Index', value: '98.4%', trend: '+0.2%', color: 'text-[#00f3ff]', glow: 'shadow-[#00f3ff]/20' },
+    { label: 'Inference Latency', value: '0.04 ms', trend: '-12%', color: 'text-green-400', glow: 'shadow-green-400/20' },
+    { label: 'Signal Integrity', value: '99.99%', trend: 'OPTIMAL', color: 'text-emerald-400', glow: 'shadow-emerald-400/20' },
   ];
 
-  // Made these clickable shortcuts mapping to real views
   const recentOps = [
-    { title: 'Fraud Detection Pipeline', status: 'Deployed', time: '2h ago', icon: 'fa-shield-cat', view: AppView.AUTOML, desc: 'Jump to AutoML Lab' },
-    { title: 'Customer Churn Analysis', status: 'Processing', time: '5h ago', icon: 'fa-users-slash', view: AppView.AUTO_EDA, desc: 'Jump to Intel Scan' },
-    { title: 'Visual Defect Scan', status: 'Completed', time: '1d ago', icon: 'fa-eye', view: AppView.VISION, desc: 'Jump to Vision HUD' },
+    { title: 'Neural Forensics Audit', status: 'Active', time: '2m ago', icon: 'fa-microchip', view: AppView.AUTO_EDA, desc: 'Visual HUD Analysis', color: 'text-[#76b900]', engine: 'Groq_LP' },
+    { title: 'Dataset Forensics V-09', status: 'Standby', time: '1h ago', icon: 'fa-shield-halved', view: AppView.DATA_CLEANER, desc: 'Deep Sector Cleaning', color: 'text-[#76b900]', engine: 'Groq_LP' },
+    { title: 'Vision Intelligence Scan', status: 'Completed', time: '4h ago', icon: 'fa-crosshairs', view: AppView.VISION, desc: 'Multimodal Intel Scan', color: 'text-[#00f3ff]', engine: 'Gemini_MM' },
   ];
 
-  // Updated status based on recent upgrades
   const systemStatus = [
-    { name: 'Core Intelligence', model: 'Gemini 3 Pro', status: 'ONLINE', usage: 'Reasoning & Coding' },
-    { name: 'Visual Cortex', model: 'Gemini 2.5 Flash', status: 'ONLINE', usage: 'Image Analysis' },
-    { name: 'Auditory Sensor', model: 'Native Audio 12-25', status: 'ONLINE', usage: 'Real-time Voice' },
-    { name: 'Tactical Maps', model: 'Google Maps Grounding', status: 'ONLINE', usage: 'Geospatial Data' },
-    { name: 'Memory Bank', model: 'IndexedDB (Local)', status: 'SECURE', usage: 'Offline Storage' },
-    { name: 'Search Uplink', model: 'Google Search Tool', status: 'ONLINE', usage: 'Live Web Data' },
+    { name: 'GROQ_CORE_01', model: 'Llama-3-70B', status: 'ONLINE', usage: 'High-Speed Logic', color: '#76b900' },
+    { name: 'GEMINI_ULTRA', model: 'Gemini-1.5-Pro', status: 'ACTIVE', usage: 'Complex Reasoning', color: '#00f3ff' },
+    { name: 'NEXUS_VISION', model: '1.5-Flash-MM', status: 'ONLINE', usage: 'Visual Forensics', color: '#00f3ff' },
+    { name: 'KERNEL_ISOLATION', model: 'V-Py v3.11', status: 'SECURE', usage: 'Code Execution', color: '#76b900' },
   ];
 
   return (
-    <div className="h-full flex flex-col p-8 overflow-y-auto bg-[#020203]">
-      <div className="max-w-6xl mx-auto w-full space-y-10">
-        
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
-          <div>
-            <h1 className="text-4xl font-black text-white orbitron tracking-tight uppercase italic">Mission Control</h1>
-            <p className="text-gray-500 mt-2 font-mono text-xs tracking-widest uppercase">System Status: <span className="text-[#00f3ff]">NOMINAL</span> | Region: <span className="text-gray-300">ASIA-SOUTH-1</span></p>
+    <div className="h-full flex flex-col p-8 bg-[#020204] overflow-y-auto relative selection:bg-[#76b900] selection:text-black">
+      {/* HUD Grid Overlay */}
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
+        style={{ backgroundImage: 'linear-gradient(#76b900 1px, transparent 1px), linear-gradient(90deg, #76b900 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
+      <div className="absolute inset-0 bg-gradient-to-b from-[#76b900]/5 via-transparent to-transparent pointer-events-none"></div>
+
+      <div className="max-w-7xl mx-auto w-full space-y-12 relative z-10">
+
+        {/* Header Command Area */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 pb-8 border-b border-white/5 animate-in fade-in slide-in-from-top-6 duration-700">
+          <div className="space-y-3">
+            <div className="flex items-center gap-4">
+              <div className="w-2 h-10 bg-[#76b900] shadow-[0_0_20px_#76b900] rounded-full"></div>
+              <h1 className="text-5xl font-black text-white orbitron tracking-[0.2em] uppercase italic drop-shadow-2xl">Mission<span className="text-[#76b900]">_Control</span></h1>
+            </div>
+            <div className="flex items-center gap-4">
+              <p className="text-gray-600 font-bold font-mono text-[9px] uppercase tracking-[0.4em] italic flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#76b900] animate-pulse"></span>
+                Neural_Status: <span className="text-[#76b900]">LINK_STABLE</span>
+              </p>
+              <div className="h-3 w-px bg-white/10"></div>
+              <p className="text-gray-600 font-bold font-mono text-[9px] uppercase tracking-[0.4em] italic flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#00f3ff] animate-pulse"></span>
+                Engine_Protocol: <span className="text-[#00f3ff]">DUAL_H_25</span>
+              </p>
+            </div>
           </div>
           <div className="flex gap-4">
-              <button 
-                onClick={() => onViewChange(AppView.CHAT)}
-                className="bg-[#00f3ff] text-black px-6 py-3 rounded-xl font-bold orbitron text-xs tracking-widest uppercase hover:scale-105 transition-all shadow-[0_0_20px_rgba(0,243,255,0.4)]"
-              >
-                <i className="fa-solid fa-terminal mr-2"></i> Open Terminal
-              </button>
+            <button
+              onClick={() => onViewChange(AppView.CHAT)}
+              className="bg-[#76b900] text-black px-10 py-4 rounded-2xl font-black orbitron text-[11px] tracking-[0.3em] uppercase hover:bg-white transition-all shadow-[0_10px_40px_rgba(118,185,0,0.3)] active:scale-95 flex items-center gap-3 border border-transparent hover:border-[#76b900]"
+            >
+              <i className="fa-solid fa-bolt-lightning text-lg"></i> Tactical Relay
+            </button>
           </div>
         </div>
 
-        {/* Metrics Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* Metrics Grid Alpha */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {metrics.map((m, i) => (
-            <div key={i} className="bg-white/5 border border-white/10 p-6 rounded-2xl hover:border-[#00f3ff]/30 transition-all group">
-              <div className="flex justify-between items-start mb-4">
-                <span className="text-[9px] orbitron text-gray-500 uppercase tracking-widest">{m.label}</span>
-                <span className={`text-[9px] font-mono ${m.trend.startsWith('+') ? 'text-green-500' : 'text-red-500'}`}>{m.trend}</span>
+            <div key={i} className={`bg-white/[0.03] border border-white/5 p-8 rounded-[32px] hover:border-white/10 transition-all group backdrop-blur-2xl shadow-2xl relative overflow-hidden`}>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 blur-[80px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <div className="flex justify-between items-start mb-6">
+                <span className="text-[10px] orbitron font-black text-gray-500 uppercase tracking-widest">{m.label}</span>
+                <div className={`flex items-center gap-1.5 text-[10px] font-black orbitron ${m.trend.startsWith('+') ? 'text-green-500' : 'text-[#76b900]'}`}>
+                  <i className={`fa-solid ${m.trend.startsWith('+') ? 'fa-arrow-trend-up' : 'fa-check-double'}`}></i>
+                  {m.trend}
+                </div>
               </div>
-              <div className={`text-3xl font-black orbitron ${m.color} group-hover:scale-110 transition-transform origin-left`}>
+              <div className={`text-3xl font-black orbitron ${m.color} group-hover:scale-105 transition-transform origin-left drop-shadow-lg`}>
                 {m.value}
+              </div>
+              <div className="mt-4 h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                <div className="h-full bg-current opacity-20 animate-pulse" style={{ width: '70%' }}></div>
               </div>
             </div>
           ))}
         </div>
 
-        {/* Main Interface Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* Left Column: Ops & Modules */}
-          <div className="lg:col-span-2 space-y-8">
-            
-            {/* Recent Operations (Now Clickable) */}
+        {/* Main Command Sectors */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+
+          {/* Left Sector: Strategic Ops */}
+          <div className="lg:col-span-8 space-y-10">
+
+            {/* Tactical Shortcuts */}
             <div className="space-y-6">
-                <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                    <h3 className="text-sm orbitron font-bold text-gray-400 uppercase tracking-widest">Active Operations (Shortcuts)</h3>
-                    <span className="text-[9px] text-gray-600 uppercase">Click to resume</span>
-                </div>
-                <div className="space-y-4">
+              <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                <h3 className="text-xs orbitron font-black text-white uppercase tracking-[0.3em] flex items-center gap-3">
+                  <i className="fa-solid fa-crosshairs text-[#76b900]"></i> Tactical Deployment Hub
+                </h3>
+                <span className="text-[9px] text-gray-700 font-mono uppercase tracking-[0.4em] font-bold">Priority Execution Nodes</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {recentOps.map((op, i) => (
-                    <button 
-                        key={i} 
-                        onClick={() => onViewChange(op.view)}
-                        className="w-full text-left bg-black/40 border border-white/5 p-4 rounded-xl flex items-center justify-between hover:bg-white/10 hover:border-[#00f3ff]/30 transition-all group"
-                    >
-                        <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20 group-hover:text-[#00f3ff] group-hover:border-[#00f3ff]/50 transition-colors">
-                                <i className={`fa-solid ${op.icon}`}></i>
-                            </div>
-                            <div>
-                                <h4 className="text-sm font-bold text-gray-200 group-hover:text-white">{op.title}</h4>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                    <span className="text-[10px] text-gray-500 uppercase tracking-wide group-hover:text-[#00f3ff]">{op.desc}</span>
-                                </div>
-                            </div>
+                  <button
+                    key={i}
+                    onClick={() => onViewChange(op.view)}
+                    className="w-full text-left bg-white/[0.02] border border-white/5 p-6 rounded-[2.5rem] flex items-center justify-between hover:bg-white/[0.08] hover:border-[#76b900]/30 transition-all group shadow-xl relative overflow-hidden"
+                  >
+                    <div className="flex items-center gap-6 relative z-10">
+                      <div className={`w-16 h-16 rounded-[20px] bg-black/40 flex items-center justify-center ${op.color} border border-white/5 group-hover:border-current transition-all shadow-2xl`}>
+                        <i className={`fa-solid ${op.icon} text-2xl group-hover:scale-120 transition-transform`}></i>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-3 mb-1">
+                          <span className="text-[8px] orbitron font-black text-gray-500 uppercase tracking-widest">{op.engine}</span>
+                          <span className="w-1 h-1 bg-white/10 rounded-full"></span>
+                          <span className="text-[8px] orbitron font-black text-green-500 uppercase tracking-widest">{op.status}</span>
                         </div>
-                        <i className="fa-solid fa-chevron-right text-gray-600 text-xs group-hover:text-white group-hover:translate-x-1 transition-all"></i>
-                    </button>
+                        <h4 className="text-sm font-black text-white orbitron tracking-[0.1em] uppercase group-hover:text-[#76b900] transition-colors">{op.title}</h4>
+                        <p className="text-[9px] text-gray-600 mt-1 uppercase font-black tracking-widest leading-relaxed">{op.desc}</p>
+                      </div>
+                    </div>
+                    <div className={`w-10 h-10 rounded-full bg-white/5 flex items-center justify-center ${op.color} opacity-40 group-hover:opacity-100 transition-all group-hover:translate-x-2`}>
+                      <i className="fa-solid fa-chevron-right"></i>
+                    </div>
+                    <div className="absolute top-0 right-0 p-4 opacity-[0.02] group-hover:opacity-[0.05] transition-opacity">
+                      <i className={`fa-solid ${op.icon} text-6xl`}></i>
+                    </div>
+                  </button>
                 ))}
-                </div>
+              </div>
             </div>
 
-            {/* Architecture Status Panel */}
-            <div className="bg-gray-900/50 border border-white/10 rounded-2xl p-6">
-                 <h3 className="text-sm orbitron font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <i className="fa-solid fa-network-wired text-[#00f3ff]"></i> API Uplink Matrix
-                 </h3>
-                 <p className="text-[9px] text-gray-500 mb-4 uppercase tracking-widest">
-                    Single Key Accessing Distributed Neural Grid
-                 </p>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {systemStatus.map((sys, i) => (
-                        <div key={i} className="flex items-center justify-between p-3 bg-black rounded-lg border border-white/5 group hover:border-[#00f3ff]/30 transition-all">
-                            <div className="flex flex-col">
-                                <span className="text-[10px] font-bold text-gray-200 uppercase">{sys.name}</span>
-                                <span className="text-[8px] text-[#00f3ff] font-mono">{sys.model}</span>
-                            </div>
-                            <div className="flex flex-col items-end">
-                                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded border ${
-                                    sys.status === 'ONLINE' ? 'bg-green-500/10 text-green-500 border-green-500/30' :
-                                    sys.status === 'SECURE' ? 'bg-blue-500/10 text-blue-500 border-blue-500/30' :
-                                    'bg-gray-500/10 text-gray-500 border-gray-500/30'
-                                }`}>
-                                    {sys.status}
-                                </span>
-                                <span className="text-[7px] text-gray-600 mt-1 uppercase">{sys.usage}</span>
-                            </div>
+            {/* Neural Matrix Architecture */}
+            <div className="bg-white/5 border border-white/10 rounded-[48px] p-10 shadow-2xl relative overflow-hidden backdrop-blur-3xl group/matrix">
+              <div className="absolute inset-0 bg-gradient-to-br from-[#76b900]/5 to-transparent opacity-0 group-hover/matrix:opacity-100 transition-opacity duration-1000"></div>
+              <div className="absolute -top-32 -right-32 opacity-[0.03] pointer-events-none group-hover/matrix:rotate-12 transition-transform duration-1000">
+                <i className="fa-solid fa-network-wired text-[400px] text-white"></i>
+              </div>
+
+              <div className="flex justify-between items-center mb-10 relative z-10">
+                <h3 className="text-xs orbitron font-black text-[#76b900] uppercase tracking-[0.4em] flex items-center gap-4">
+                  <div className="p-2 bg-[#76b900]/10 rounded-lg">
+                    <i className="fa-solid fa-microchip"></i>
+                  </div>
+                  System_Infrastructure_Matrix
+                </h3>
+                <div className="flex items-center gap-4">
+                  <div className="text-[9px] font-black orbitron text-gray-600 uppercase tracking-widest">Global_Status: <span className="text-green-500">OPTIMAL</span></div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+                {systemStatus.map((sys, i) => (
+                  <div key={i} className="flex items-center justify-between p-6 bg-black/60 rounded-[32px] border border-white/5 group/sys hover:border-current transition-all shadow-inner" style={{ color: sys.color }}>
+                    <div className="flex items-center gap-5">
+                      <div className="w-1.5 h-10 rounded-full" style={{ backgroundColor: sys.color }}></div>
+                      <div className="flex flex-col">
+                        <span className="text-[12px] font-black text-white orbitron uppercase tracking-widest">{sys.name}</span>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[8px] font-black orbitron uppercase tracking-widest" style={{ color: sys.color }}>{sys.model}</span>
+                          <span className="text-[8px] text-gray-700 font-bold uppercase tracking-widest">/ {sys.usage}</span>
                         </div>
-                    ))}
-                 </div>
-            </div>
-
-            {/* Quick Actions Map */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <button onClick={() => onViewChange(AppView.AUTO_EDA)} className="p-6 bg-gradient-to-br from-purple-900/20 to-black border border-purple-500/20 rounded-2xl text-left hover:border-purple-500/50 transition-all group">
-                    <i className="fa-solid fa-crosshairs text-2xl text-purple-400 mb-3 group-hover:scale-125 transition-transform"></i>
-                    <h4 className="font-bold text-gray-200">Start Intel Scan</h4>
-                    <p className="text-[10px] text-gray-500 mt-1">Automated Exploratory Data Analysis</p>
-                </button>
-                <button onClick={() => onViewChange(AppView.DATA_CLEANER)} className="p-6 bg-gradient-to-br from-red-900/20 to-black border border-red-500/20 rounded-2xl text-left hover:border-red-500/50 transition-all group">
-                    <i className="fa-solid fa-biohazard text-2xl text-red-400 mb-3 group-hover:scale-125 transition-transform"></i>
-                    <h4 className="font-bold text-gray-200">Forensic Cleanup</h4>
-                    <p className="text-[10px] text-gray-500 mt-1">Detect and repair data anomalies</p>
-                </button>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <span className={`text-[9px] font-black px-4 py-1.5 rounded-full border shadow-lg group-hover/sys:scale-105 transition-all tracking-[0.1em]`}
+                        style={{ backgroundColor: `${sys.color}15`, color: sys.color, borderColor: `${sys.color}30` }}>
+                        {sys.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Right Column: Feeds & Info */}
-          <div className="flex flex-col gap-6">
-             <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col">
-                <div className="flex items-center justify-between mb-6">
-                   <span className="text-[9px] orbitron font-bold text-gray-400 uppercase tracking-widest">Global Intelligence</span>
-                   <span className="w-2 h-2 bg-[#00f3ff] rounded-full animate-ping"></span>
-                </div>
-                
-                <div className="flex-1 space-y-6 overflow-y-auto custom-scrollbar">
-                   {[1, 2, 3].map((_, i) => (
-                       <div key={i} className="border-l-2 border-white/10 pl-4 py-1">
-                           <p className="text-[10px] text-gray-500 mb-1 font-mono">14:0{i} Zulu Time</p>
-                           <p className="text-xs text-gray-300 leading-relaxed">
-                               Detected new transformer architecture paper "DeepSeek-V3" trending in sector 7. Recommendation: Update knowledge base.
-                           </p>
-                       </div>
-                   ))}
-                </div>
-             </div>
+          {/* Right Sector: Global Intelligence Feed */}
+          <div className="lg:col-span-4 space-y-8 flex flex-col">
+            {/* Core Intel Card */}
+            <div className="bg-gradient-to-br from-[#76b900]/20 to-transparent border border-[#76b900]/30 rounded-[48px] p-10 shadow-2xl relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
+                <i className="fa-solid fa-atom text-[100px] text-white"></i>
+              </div>
+              <div className="w-16 h-16 rounded-[24px] bg-[#76b900] flex items-center justify-center text-black mb-10 shadow-[0_15px_40px_rgba(118,185,0,0.4)]">
+                <i className="fa-solid fa-bolt-lightning text-2xl"></i>
+              </div>
+              <h4 className="text-white font-black orbitron text-sm uppercase tracking-[0.2em] mb-6">Dual Intelligence Architecture</h4>
+              <p className="text-[11px] text-gray-400 leading-relaxed font-mono uppercase tracking-wider">
+                ATLAS-X has evolved into a multispectral intelligence hub.
+                <br /><br />
+                <span className="text-[#76b900] font-black tracking-[0.2em]">■ GREEN_ENGINE</span><br />
+                <span className="text-[10px] text-gray-600 font-bold">GROQ_POWERED HIGH-SPEED INFERENCE (LLAMA-3).</span>
+                <br /><br />
+                <span className="text-[#00f3ff] font-black tracking-[0.2em]">■ BLUE_ENGINE</span><br />
+                <span className="text-[10px] text-gray-600 font-bold">GEMINI_POWERED MULTIMODAL REASONING.</span>
+              </p>
+            </div>
 
-             {/* About Project / Architecture Card for Recruiters */}
-             <div className="bg-gradient-to-br from-indigo-950/40 to-black border border-indigo-500/20 rounded-2xl p-6">
-                 <h4 className="text-indigo-400 font-bold text-xs uppercase mb-2"><i className="fa-solid fa-bolt mr-2"></i>One Key. Infinite Power.</h4>
-                 <p className="text-[10px] text-gray-400 leading-relaxed mb-3">
-                     This entire dashboard is powered by a single Gemini API connection. It dynamically switches between <strong>Pro</strong> (Reasoning), <strong>Flash</strong> (Speed), and <strong>Vision</strong> based on your task.
-                 </p>
-                 <div className="flex gap-2">
-                     <span className="px-2 py-1 bg-black rounded border border-white/10 text-[8px] text-gray-500 uppercase">React 19</span>
-                     <span className="px-2 py-1 bg-black rounded border border-white/10 text-[8px] text-gray-500 uppercase">TypeScript</span>
-                     <span className="px-2 py-1 bg-black rounded border border-white/10 text-[8px] text-gray-500 uppercase">Gemini 2.5</span>
-                 </div>
-             </div>
+            {/* Neural Telemetry Feed */}
+            <div className="bg-white/5 border border-white/10 rounded-[48px] p-10 flex flex-col flex-1 shadow-2xl backdrop-blur-3xl relative overflow-hidden">
+              <div className="flex items-center justify-between mb-10 relative z-10">
+                <span className="text-[10px] orbitron font-black text-gray-500 uppercase tracking-[0.4em]">Live_Uplink_Stream</span>
+                <div className="flex gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#76b900] animate-pulse"></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#76b900] animate-pulse delay-150"></div>
+                </div>
+              </div>
+
+              <div className="space-y-10 relative z-10 overflow-y-auto custom-scrollbar pr-4">
+                {[
+                  { time: 'T-MS: 402', msg: 'Satellite handshake verified. Groq inference nodes at 100% efficiency.', icon: 'fa-satellite' },
+                  { time: 'T-MS: 1204', msg: 'Gemini multimodal pipeline synchronized for vision sector scan.', icon: 'fa-eye' },
+                  { time: 'T-MS: 2890', msg: 'Data Forensics quarantine active. Analyzing sector V-BR-09 for anomalies.', icon: 'fa-biohazard' }
+                ].map((log, i) => (
+                  <div key={i} className="relative pl-8 border-l-2 border-[#76b900]/20 group/log">
+                    <div className="absolute left-[-9px] top-0 w-4 h-4 rounded-full bg-[#020204] border-2 border-[#76b900]/30 flex items-center justify-center group-hover/log:border-[#76b900] transition-colors">
+                      <div className="w-1 h-1 bg-[#76b900] rounded-full group-hover/log:scale-150 transition-transform"></div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-3">
+                        <i className={`fa-solid ${log.icon} text-[10px] text-[#76b900] opacity-50`}></i>
+                        <p className="text-[9px] text-[#76b900]/60 font-black orbitron uppercase tracking-[0.3em]">{log.time}</p>
+                      </div>
+                      <p className="text-[11px] text-gray-400 leading-relaxed font-bold uppercase tracking-tight group-hover/log:text-white transition-colors">
+                        {log.msg}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-auto pt-6 border-t border-white/5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[8px] orbitron font-black text-gray-700 uppercase tracking-[0.5em]">Command_ID: X-901-T</span>
+                  <span className="text-[8px] orbitron font-black text-gray-700 uppercase tracking-[0.5em]">Rev: 4.8.2</span>
+                </div>
+              </div>
+            </div>
           </div>
-
         </div>
       </div>
     </div>

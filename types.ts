@@ -11,10 +11,20 @@ export interface User {
 export interface Message {
   role: 'user' | 'model';
   content: string;
-  type: 'text' | 'image' | 'code' | 'system';
+  type: 'text' | 'image' | 'code' | 'system' | 'dataset' | 'intel_node';
   timestamp: Date;
-  groundingUrls?: Array<{title: string, uri: string}>;
+  groundingUrls?: Array<{ title: string, uri: string }>;
   imageData?: string;
+  metadata?: { provider: string };
+}
+
+export interface ChatSession {
+  id: string;
+  userId?: string;
+  moduleId: string;
+  title: string;
+  lastUpdated: Date;
+  preview: string;
 }
 
 export enum AppView {
@@ -33,7 +43,8 @@ export enum AppView {
   AUTOML = 'automl',
   KAGGLE_HUB = 'kaggle_hub',
   CAREER = 'career',
-  SETTINGS = 'settings'
+  SETTINGS = 'settings',
+  DEEP_RESEARCH = 'deep_research'
 }
 
 export interface DataMetric {

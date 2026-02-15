@@ -1,14 +1,23 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [react()],
-  define: {
-    // This allows the API key to be passed from Vercel Environment Variables
-    'process.env.API_KEY': JSON.stringify(process.env.API_KEY)
-  },
-  server: {
-    host: '0.0.0.0',
-  }
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  return {
+    plugins: [react()],
+    define: {
+      'process.env.API_KEY': JSON.stringify(env.API_KEY),
+      'process.env.GROQ_API_KEY': JSON.stringify(env.GROQ_API_KEY)
+    },
+    server: {
+      host: '0.0.0.0',
+      proxy: {
+        '/api': {
+          target: 'http://localhost:3002',
+          changeOrigin: true,
+          secure: false,
+        }
+      }
+    }
+  };
 });
