@@ -39,7 +39,10 @@ class AtlasDatabase {
     const config = this.getDbConfig();
     if (!config) return null;
     try {
-      const res = await fetch(`/api/history/${endpoint}`, {
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const PROXY_URL = isLocal ? 'http://localhost:3001' : '';
+
+      const res = await fetch(`${PROXY_URL}/api/history/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ config, ...body })
