@@ -128,22 +128,22 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
             <p className="text-[10px] orbitron tracking-[0.2em] text-gray-500 uppercase mt-2">Login to your account</p>
           </div>
 
-          {/* Toggle Tabs - Simplified to siff Login/Verify */}
+          {/* Toggle Tabs - Tactical Onboarding */}
           <div className="flex mb-8 border-b border-white/10">
             <button
-              className={`flex-1 py-3 text-[11px] orbitron font-black uppercase tracking-[0.3em] transition-all relative ${mode !== 'verify' ? 'text-[#00f3ff]' : 'text-gray-600'}`}
+              onClick={() => { setMode('login'); setError(''); }}
+              className={`flex-1 py-3 text-[10px] orbitron font-black uppercase tracking-[0.3em] transition-all relative ${mode === 'login' || mode === 'verify' ? 'text-[#00f3ff]' : 'text-gray-600 hover:text-gray-400'}`}
             >
               SECURE GATEWAY
-              {mode !== 'verify' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#00f3ff] shadow-[0_0_10px_#00f3ff]"></div>}
+              {(mode === 'login' || mode === 'verify') && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#00f3ff] shadow-[0_0_10px_#00f3ff]"></div>}
             </button>
-            {mode === 'verify' && (
-              <button
-                className="flex-1 py-3 text-[11px] orbitron font-black uppercase tracking-[0.3em] text-[#ff00ff] relative"
-              >
-                IDENTITY HANDSHAKE
-                <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#ff00ff] shadow-[0_0_10px_#ff00ff]"></div>
-              </button>
-            )}
+            <button
+              onClick={() => { setMode('register'); setError(''); }}
+              className={`flex-1 py-3 text-[10px] orbitron font-black uppercase tracking-[0.3em] transition-all relative ${mode === 'register' ? 'text-[#ff00ff]' : 'text-gray-600 hover:text-gray-400'}`}
+            >
+              ONBOARD NODE
+              {mode === 'register' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#ff00ff] shadow-[0_0_10px_#ff00ff]"></div>}
+            </button>
           </div>
 
           {/* Form */}
@@ -154,11 +154,11 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                   <div className="w-10 h-10 bg-[#00f3ff]/10 rounded border border-[#00f3ff]/30 flex items-center justify-center mx-auto mb-2">
                     <i className="fa-solid fa-envelope-open-text text-[#00f3ff] text-sm"></i>
                   </div>
-                  <h3 className="orbitron text-[10px] text-white font-bold tracking-[0.2em] uppercase">Enter Protocol Code</h3>
-                  <p className="text-[9px] text-gray-500 mt-1">Verification dispatched to authorized nodes.</p>
+                  <h3 className="orbitron text-[10px] text-white font-bold tracking-[0.2em] uppercase">Protocol Cipher Required</h3>
+                  <p className="text-[9px] text-gray-500 mt-1">Check <span className="text-[#00f3ff] font-mono">{formData.email}</span> for handshake code.</p>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] orbitron font-bold text-gray-500 uppercase tracking-widest">6-Digit Cipher</label>
+                  <label className="text-[10px] orbitron font-bold text-gray-500 uppercase tracking-widest text-[#00f3ff]">6-Digit Code</label>
                   <input
                     type="text"
                     required
@@ -172,8 +172,22 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
               </div>
             ) : (
               <>
+                {mode === 'register' && (
+                  <div className="space-y-1 animate-in fade-in slide-in-from-right-4 duration-300">
+                    <label className="text-[10px] orbitron font-bold text-gray-500 uppercase tracking-widest">Call Sign / Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={e => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full bg-black border border-white/20 p-3 text-sm text-white outline-none focus:border-[#ff00ff] transition-colors"
+                      placeholder="Enter identity"
+                    />
+                  </div>
+                )}
+
                 <div className="space-y-1">
-                  <label className="text-[10px] orbitron font-bold text-gray-500 uppercase tracking-widest">Email Address</label>
+                  <label className="text-[10px] orbitron font-bold text-gray-500 uppercase tracking-widest">Identity Node (Email)</label>
                   <input
                     type="email"
                     required
@@ -185,7 +199,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] orbitron font-bold text-gray-500 uppercase tracking-widest">Password</label>
+                  <label className="text-[10px] orbitron font-bold text-gray-500 uppercase tracking-widest">Security Key (Password)</label>
                   <input
                     type="password"
                     required
@@ -199,7 +213,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
             )}
 
             {error && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-mono flex items-center gap-2">
+              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-mono flex items-center gap-2">
                 <i className="fa-solid fa-triangle-exclamation"></i>
                 {error}
               </div>
@@ -209,27 +223,40 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
               type="submit"
               disabled={loading}
               className={`w-full py-4 mt-2 font-black orbitron text-xs tracking-widest transition-all flex items-center justify-center gap-2 ${mode === 'login'
-                ? 'bg-[#00f3ff] text-black hover:bg-white shadow-[0_0_20px_#00f3ff]' : 'bg-white text-black hover:bg-[#00f3ff] shadow-[0_0_20px_white]'
+                ? 'bg-[#00f3ff] text-black hover:bg-white shadow-[0_0_20px_#00f3ff]'
+                : mode === 'register' ? 'bg-[#ff00ff] text-black hover:bg-white shadow-[0_0_20px_#ff00ff]'
+                  : 'bg-white text-black hover:bg-[#00f3ff] shadow-[0_0_20px_white]'
                 } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {loading ? (
                 <>
-                  <i className="fa-solid fa-circle-notch fa-spin"></i> CONNECTING...
+                  <i className="fa-solid fa-circle-notch fa-spin"></i> INITIALIZING...
                 </>
               ) : (
-                mode === 'login' ? 'ACCESS GATEWAY' : 'VERIFY & UNLOCK'
+                mode === 'login' ? 'ACCESS GATEWAY' : (mode === 'register' ? 'ONBOARD NODE' : 'VERIFY & UNLOCK')
               )}
             </button>
+
             {mode === 'verify' && (
               <button
                 type="button"
                 onClick={() => setMode('login')}
-                className="w-full text-[10px] orbitron text-gray-500 hover:text-[#00f3ff] transition-colors uppercase tracking-widest pt-2"
+                className="w-full text-[10px] orbitron text-gray-500 hover:text-[#00f3ff] transition-colors uppercase tracking-[0.2em] pt-2"
               >
                 Abort Protocol
               </button>
             )}
           </form>
+
+          {/* Guest Sector - Simplified */}
+          <div className="mt-8 pt-6 border-t border-white/5 flex flex-col items-center gap-3">
+            <button
+              onClick={handleGuestLogin}
+              className="text-[9px] orbitron text-gray-500 hover:text-[#00f3ff] transition-all flex items-center gap-2 uppercase tracking-[0.3em] bg-white/5 px-6 py-2 border border-white/5 hover:border-[#00f3ff]/30"
+            >
+              <i className="fa-solid fa-user-secret"></i> Guest Access
+            </button>
+          </div>
 
           {/* Terminal Output */}
           <div className="mt-6 bg-black p-3 rounded border border-white/5 font-mono text-[8px] text-gray-500 h-20 overflow-hidden">
