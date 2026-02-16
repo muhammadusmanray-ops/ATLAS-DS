@@ -6,7 +6,6 @@ import axios from 'axios';
 import bcrypt from 'bcryptjs';
 import { queryDatabase } from './db-connector.js';
 import dotenv from 'dotenv';
-import nodemailer from 'nodemailer';
 
 // Load env variables
 dotenv.config();
@@ -28,14 +27,13 @@ app.use((req, res, next) => {
     next();
 });
 
-// --- GMAIL PROTOCOL (NODEMAILER) ---
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: 'usmanray57@gmail.com',
-        pass: 'dtsb thth qguj zpsw'
-    }
-});
+// --- BREVO EMAIL PROTOCOL (Professional SMTP) ---
+import SibApiV3Sdk from '@sendinblue/client';
+
+const brevoClient = new SibApiV3Sdk.TransactionalEmailsApi();
+const brevoApiKey = brevoClient.authentications['apiKey'];
+brevoApiKey.apiKey = process.env.BREVO_API_KEY || 'your-brevo-api-key-here';
+
 const KAGGLE_USERNAME = process.env.KAGGLE_USERNAME;
 const KAGGLE_API_KEY = process.env.KAGGLE_API_KEY;
 
@@ -157,29 +155,29 @@ app.post('/api/auth/register', async (req, res) => {
             console.log(`✅ [REGISTER] New secure account created: ${email}`);
         }
 
-        // DISPATCH OTP EMAIL (GMAIL RELAY)
+        // DISPATCH OTP EMAIL (BREVO RELAY)
         try {
-            const mailOptions = {
-                from: '"Atlas Intelligence" <usmanray57@gmail.com>',
-                to: email,
-                subject: '🔐 ATLAS-X: Identity Handshake',
-                html: `
-                    <div style="font-family: 'Courier New', monospace; background: #0a0a0a; color: #00f3ff; padding: 40px; border: 2px solid #00f3ff; max-width: 600px; margin: auto;">
-                        <h1 style="text-align: center; border-bottom: 1px solid #00f3ff; padding-bottom: 20px;">ACCESS_PROTOCOL_ALPHA</h1>
-                        <p style="font-size: 16px;">Commander <strong>${name || 'Node'}</strong>,</p>
-                        <p>Identity verification requested for this node. Enter the following tactical sequence to unlock your dashboard:</p>
-                        <div style="background: #111; padding: 30px; font-size: 40px; letter-spacing: 15px; text-align: center; border: 1px dashed #00f3ff; margin: 30px 0; color: #fff; text-shadow: 0 0 10px #00f3ff;">
-                            ${otp}
-                        </div>
-                        <p style="color: #ff00ff; font-size: 12px; text-align: center;">[ WARNING: This code expires in 10 minutes ]</p>
-                        <div style="margin-top: 40px; font-size: 10px; color: #444; text-align: center;">
-                            SECURE GATEWAY v7.0 | ENCRYPTED LINK | NEON_PROTOCOL ACTIVE
-                        </div>
+            const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+            sendSmtpEmail.sender = { name: 'Atlas Intelligence', email: 'usmanray57@gmail.com' };
+            sendSmtpEmail.to = [{ email: email }];
+            sendSmtpEmail.subject = '🔐 ATLAS-X: Identity Handshake';
+            sendSmtpEmail.htmlContent = `
+                <div style="font-family: 'Courier New', monospace; background: #0a0a0a; color: #00f3ff; padding: 40px; border: 2px solid #00f3ff; max-width: 600px; margin: auto;">
+                    <h1 style="text-align: center; border-bottom: 1px solid #00f3ff; padding-bottom: 20px;">ACCESS_PROTOCOL_ALPHA</h1>
+                    <p style="font-size: 16px;">Commander <strong>${name || 'Node'}</strong>,</p>
+                    <p>Identity verification requested for this node. Enter the following tactical sequence to unlock your dashboard:</p>
+                    <div style="background: #111; padding: 30px; font-size: 40px; letter-spacing: 15px; text-align: center; border: 1px dashed #00f3ff; margin: 30px 0; color: #fff; text-shadow: 0 0 10px #00f3ff;">
+                        ${otp}
                     </div>
-                `
-            };
-            await transporter.sendMail(mailOptions);
-            console.log(`📧 [EMAIL_RELAY] Tactical packet delivered to: ${email}`);
+                    <p style="color: #ff00ff; font-size: 12px; text-align: center;">[ WARNING: This code expires in 10 minutes ]</p>
+                    <div style="margin-top: 40px; font-size: 10px; color: #444; text-align: center;">
+                        SECURE GATEWAY v8.0 | BREVO RELAY | NEON_PROTOCOL ACTIVE
+                    </div>
+                </div>
+            `;
+
+            await brevoClient.sendTransacEmail(sendSmtpEmail);
+            console.log(`📧 [BREVO_RELAY] Tactical packet delivered to: ${email}`);
         } catch (emailErr) {
             console.error('❌ Email Relay Failed:', emailErr.message);
             // Don't fail the whole request, but log it
