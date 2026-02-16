@@ -26,15 +26,16 @@ groq_models.json
 cctv_data.csv
 
 # Scripts/Tests
-check_*.js
-test*.js
-test_*.js
-*.py
-api/
-server/
-scripts/
-android/
-ios/
+# (Allowing api/ and server/ for Vercel deployment)
+# check_*.js
+# test*.js
+# test_*.js
+# *.py
+# api/
+# server/
+# scripts/
+# android/
+# ios/
 
 # MacOS
 .DS_Store
