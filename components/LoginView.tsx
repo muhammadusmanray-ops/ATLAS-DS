@@ -6,8 +6,8 @@ interface LoginViewProps {
 }
 
 const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [formData, setFormData] = useState({ name: '', email: '', password: '' });
+  const [mode, setMode] = useState<'login' | 'register' | 'verify'>('login');
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', code: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -15,26 +15,8 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const [logs, setLogs] = useState<string[]>([]);
 
   useEffect(() => {
-    addLog("SYSTEM_INIT: SECURE GATEWAY v6.0");
-    addLog("AUTH_RELAY: NEON_PERSISTENCE ACTIVE");
-
-    // Initialize Auth Tables if DB is connected
-    const initAuth = async () => {
-      const config = localStorage.getItem('atlas_active_db_config');
-      if (config) {
-        try {
-          await fetch('/api/auth/init', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ config: JSON.parse(config) })
-          });
-          addLog("IDENTITY_VAULT: Synchronized with Cloud.");
-        } catch (e) {
-          console.warn("Auth Init Failed:", e);
-        }
-      }
-    };
-    initAuth();
+    addLog("SYSTEM_INIT: SECURE GATEWAY v6.5");
+    addLog("AUTH_RELAY: DISPATCHER_VERIFIED");
   }, []);
 
   const addLog = (msg: string) => {
@@ -48,49 +30,56 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     addLog(`${mode.toUpperCase()}_ATTEMPT: ${formData.email}`);
 
     try {
-      // 🛡️ ChatGPT-Style Strict Validation
-      const endpoint = mode === 'register' ? '/api/auth/register' : '/api/auth/login';
+      if (mode === 'verify') {
+        const res = await fetch('/api/auth/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: formData.email, code: formData.code })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
 
+        addLog("VERIFICATION_SUCCESS: Access Ready.");
+        localStorage.setItem('ATLAS_USER_SESSION', JSON.stringify(data.user));
+        onLogin(data.user);
+        return;
+      }
+
+      // LOGIN / REGISTER
+      const endpoint = mode === 'register' ? '/api/auth/register' : '/api/auth/login';
       const res = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          id: mode === 'register' ? `usr_${Date.now()}` : undefined,
           avatar: mode === 'register' ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.name}` : undefined
         })
       });
 
-      // Handle non-JSON responses (like Vercel 405s) gracefully
-      const contentType = res.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        const text = await res.text();
-        console.error("Backend Error:", text);
-        throw new Error("SYSTEM_CRITICAL: Unified Logic Sector Unreachable. Check Routing.");
-      }
-
       const data = await res.json();
 
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "CREDENTIAL_MISMATCH: Access Refused.");
+      if (res.status === 403 && data.needsVerification) {
+        addLog("PROTOCOL_HOLD: Email Verification Required.");
+        setMode('verify');
+        setError('');
+        return;
       }
 
-      // Success Path
-      addLog(mode === 'register' ? "IDENTITY_CREATED: Welcome Commander." : "ACCESS_GRANTED: Handshake Complete.");
+      if (!data.success) throw new Error(data.error);
 
-      // Persist Session like ChatGPT
-      const userToSave = mode === 'register' ? { ...formData, id: `usr_${Date.now()}`, rank: 'Lead Scientist' } : data.user;
-      localStorage.setItem('ATLAS_USER_SESSION', JSON.stringify(userToSave));
+      if (mode === 'register' && data.needsVerification) {
+        addLog("DISPATCHED: Security code sent to inbox.");
+        setMode('verify');
+        return;
+      }
 
-      setTimeout(() => onLogin(userToSave), 800);
+      addLog("ACCESS_GRANTED: Handshake Complete.");
+      localStorage.setItem('ATLAS_USER_SESSION', JSON.stringify(data.user));
+      onLogin(data.user);
 
     } catch (err: any) {
-      console.error("Auth Exception:", err);
-      setError(err.message || "PROTOCOL_ERROR: Authentication sequence failed.");
-      addLog(`DENIED: Security Protocols Active.`);
+      setError(err.message || "PROTOCOL_ERROR: Failed.");
+      addLog(`DENIED: Security protocols active.`);
     } finally {
       setLoading(false);
     }
@@ -156,43 +145,69 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
           {/* Form */}
           <form onSubmit={handleAuth} className="space-y-5">
-            {mode === 'register' && (
-              <div className="space-y-1 animate-in fade-in slide-in-from-right-4 duration-300">
-                <label className="text-[10px] orbitron font-bold text-gray-500 uppercase tracking-widest">Your Name</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={e => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full bg-black border border-white/20 p-3 text-sm text-white outline-none focus:border-[#ff00ff] transition-colors"
-                  placeholder="Enter your name"
-                />
+            {mode === 'verify' ? (
+              <div className="space-y-4 animate-in fade-in zoom-in duration-500">
+                <div className="text-center py-2">
+                  <div className="w-10 h-10 bg-[#00f3ff]/10 rounded border border-[#00f3ff]/30 flex items-center justify-center mx-auto mb-2">
+                    <i className="fa-solid fa-envelope-open-text text-[#00f3ff] text-sm"></i>
+                  </div>
+                  <h3 className="orbitron text-[10px] text-white font-bold tracking-[0.2em] uppercase">Enter Handshake Code</h3>
+                  <p className="text-[9px] text-gray-500 mt-1">Verification sent to: <span className="text-gray-300">{formData.email}</span></p>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] orbitron font-bold text-gray-500 uppercase tracking-widest">6-Digit Code</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={formData.code}
+                    onChange={e => setFormData({ ...formData, code: e.target.value })}
+                    className="w-full bg-black border border-[#00f3ff]/40 p-4 text-center text-2xl tracking-[15px] font-mono text-[#00f3ff] outline-none focus:border-[#00f3ff] transition-all shadow-[inset_0_0_15px_rgba(0,243,255,0.1)]"
+                    placeholder="000000"
+                  />
+                </div>
               </div>
+            ) : (
+              <>
+                {mode === 'register' && (
+                  <div className="space-y-1 animate-in fade-in slide-in-from-right-4 duration-300">
+                    <label className="text-[10px] orbitron font-bold text-gray-500 uppercase tracking-widest">Your Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={e => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full bg-black border border-white/20 p-3 text-sm text-white outline-none focus:border-[#ff00ff] transition-colors"
+                      placeholder="Enter your name"
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <label className="text-[10px] orbitron font-bold text-gray-500 uppercase tracking-widest">Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={e => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full bg-black border border-white/20 p-3 text-sm text-white outline-none focus:border-[#00f3ff] transition-colors font-mono"
+                    placeholder="email@example.com"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] orbitron font-bold text-gray-500 uppercase tracking-widest">Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={formData.password}
+                    onChange={e => setFormData({ ...formData, password: e.target.value })}
+                    className="w-full bg-black border border-white/20 p-3 text-sm text-white outline-none focus:border-[#00f3ff] transition-colors"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </>
             )}
-
-            <div className="space-y-1">
-              <label className="text-[10px] orbitron font-bold text-gray-500 uppercase tracking-widest">Email Address</label>
-              <input
-                type="email"
-                required
-                value={formData.email}
-                onChange={e => setFormData({ ...formData, email: e.target.value })}
-                className="w-full bg-black border border-white/20 p-3 text-sm text-white outline-none focus:border-[#00f3ff] transition-colors font-mono"
-                placeholder="email@example.com"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-[10px] orbitron font-bold text-gray-500 uppercase tracking-widest">Password</label>
-              <input
-                type="password"
-                required
-                value={formData.password}
-                onChange={e => setFormData({ ...formData, password: e.target.value })}
-                className="w-full bg-black border border-white/20 p-3 text-sm text-white outline-none focus:border-[#00f3ff] transition-colors"
-                placeholder="••••••••"
-              />
-            </div>
 
             {error && (
               <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-mono flex items-center gap-2">
@@ -206,17 +221,28 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
               disabled={loading}
               className={`w-full py-4 mt-2 font-black orbitron text-xs tracking-widest transition-all flex items-center justify-center gap-2 ${mode === 'login'
                 ? 'bg-[#00f3ff] text-black hover:bg-white shadow-[0_0_20px_#00f3ff]'
-                : 'bg-[#ff00ff] text-black hover:bg-white shadow-[0_0_20px_#ff00ff]'
+                : mode === 'register'
+                  ? 'bg-[#ff00ff] text-black hover:bg-white shadow-[0_0_20px_#ff00ff]'
+                  : 'bg-white text-black hover:bg-[#00f3ff] shadow-[0_0_20px_white]'
                 } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {loading ? (
                 <>
-                  <i className="fa-solid fa-circle-notch fa-spin"></i> LOADING...
+                  <i className="fa-solid fa-circle-notch fa-spin"></i> CONNECTING...
                 </>
               ) : (
-                mode === 'login' ? 'LOGIN NOW' : 'REGISTER NOW'
+                mode === 'login' ? 'LOGIN NOW' : (mode === 'register' ? 'REGISTER NOW' : 'VERIFY & ACCESS')
               )}
             </button>
+            {mode === 'verify' && (
+              <button
+                type="button"
+                onClick={() => setMode('login')}
+                className="w-full text-[10px] orbitron text-gray-500 hover:text-[#00f3ff] transition-colors uppercase tracking-widest pt-2"
+              >
+                Back to Login
+              </button>
+            )}
           </form>
 
           {/* Guest Bypass */}

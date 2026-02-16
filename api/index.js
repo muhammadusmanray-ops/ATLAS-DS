@@ -28,7 +28,7 @@ app.use((req, res, next) => {
     next();
 });
 
-const resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder_secret');
+const resend = new Resend('re_UnpPXcWV_Q4ynAyLZc2u6FBNHmtzhEANy');
 const KAGGLE_USERNAME = process.env.KAGGLE_USERNAME;
 const KAGGLE_API_KEY = process.env.KAGGLE_API_KEY;
 
@@ -78,7 +78,9 @@ app.post('/api/auth/init', async (req, res) => {
                 email TEXT UNIQUE,
                 password TEXT,
                 avatar TEXT,
-                rank TEXT DEFAULT 'Lead Scientist'
+                rank TEXT DEFAULT 'Lead Scientist',
+                verified BOOLEAN DEFAULT FALSE,
+                verification_code TEXT
             );
         `;
         await queryDatabase(dbConfig, createTable);
@@ -94,20 +96,57 @@ app.post('/api/auth/register', async (req, res) => {
         const { config, id, name, email, password, avatar } = req.body || {};
         const dbConfig = validateConfig(config);
 
-        // Auto-init for fallback
-        await queryDatabase(dbConfig, `CREATE TABLE IF NOT EXISTS atlas_users (id TEXT PRIMARY KEY, name TEXT, email TEXT UNIQUE, password TEXT, avatar TEXT, rank TEXT DEFAULT 'Lead Scientist');`);
+        // Auto-init for fallback (including verification fields)
+        await queryDatabase(dbConfig, `
+            CREATE TABLE IF NOT EXISTS atlas_users (
+                id TEXT PRIMARY KEY, 
+                name TEXT, 
+                email TEXT UNIQUE, 
+                password TEXT, 
+                avatar TEXT, 
+                rank TEXT DEFAULT 'Lead Scientist',
+                verified BOOLEAN DEFAULT FALSE,
+                verification_code TEXT
+            );
+        `);
 
-        // HASH PASSWORD for Security
+        // HASH PASSWORD
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
+        // GENERATE OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
         const query = {
-            text: 'INSERT INTO atlas_users (id, name, email, password, avatar) VALUES ($1, $2, $3, $4, $5)',
-            values: [id, name, email, hashedPassword, avatar]
+            text: 'INSERT INTO atlas_users (id, name, email, password, avatar, verification_code) VALUES ($1, $2, $3, $4, $5, $6)',
+            values: [id, name, email, hashedPassword, avatar, otp]
         };
         await queryDatabase(dbConfig, query);
-        console.log(`✅ [REGISTER] Secure account created for: ${email}`);
-        res.json({ success: true });
+
+        // DISPATCH OTP EMAIL
+        try {
+            await resend.emails.send({
+                from: 'Atlas Intelligence <onboarding@resend.dev>',
+                to: email,
+                subject: '🔐 ATLAS-X: Verification Protocol',
+                html: `
+                    <div style="font-family: monospace; background: #050505; color: #fff; padding: 40px; border: 1px solid #00f3ff;">
+                        <h1 style="color: #00f3ff;">IDENTITY_HANDSHAKE</h1>
+                        <p>Commander ${name},</p>
+                        <p>Your tactical access code is:</p>
+                        <div style="background: #111; padding: 20px; font-size: 32px; letter-spacing: 10px; text-align: center; border: 1px dashed #00f3ff; color: #00f3ff;">
+                            ${otp}
+                        </div>
+                        <p style="font-size: 10px; color: #555; margin-top: 40px;">SECURE GATEWAY v6.0 | ENCRYPTED PACKET</p>
+                    </div>
+                `
+            });
+        } catch (emailErr) {
+            console.error('Email Dispatch Failed:', emailErr.message);
+        }
+
+        console.log(`✅ [REGISTER] Secure account created: ${email}. OTP: ${otp}`);
+        res.json({ success: true, needsVerification: true });
     } catch (error) {
         console.error('❌ Registration Error:', error.message);
         res.status(500).json({ success: false, error: error.message });
@@ -130,13 +169,18 @@ app.post('/api/auth/login', async (req, res) => {
 
         if (rows && rows.length > 0) {
             const user = rows[0];
+
+            if (!user.verified) {
+                return res.status(403).json({ success: false, error: 'IDENTITY_PENDING: Please verify your email first.', needsVerification: true });
+            }
+
             // COMPARE Hash
             const isMatch = await bcrypt.compare(password, user.password);
 
             if (isMatch) {
                 console.log(`✅ [LOGIN] Authenticated: ${email}`);
                 // Remove password from response for security
-                const { password: _, ...userWithoutPassword } = user;
+                const { password: _, verification_code: __, ...userWithoutPassword } = user;
                 res.json({ success: true, user: userWithoutPassword });
             } else {
                 res.status(401).json({ success: false, error: 'Invalid Credentials' });
@@ -147,6 +191,31 @@ app.post('/api/auth/login', async (req, res) => {
         }
     } catch (error) {
         console.error('❌ Login Error:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.post('/api/auth/verify', async (req, res) => {
+    try {
+        const { config, email, code } = req.body || {};
+        const dbConfig = validateConfig(config);
+
+        const query = {
+            text: 'SELECT * FROM atlas_users WHERE email = $1 AND verification_code = $2',
+            values: [email, code]
+        };
+        const rows = await queryDatabase(dbConfig, query);
+
+        if (rows && rows.length > 0) {
+            await queryDatabase(dbConfig, {
+                text: 'UPDATE atlas_users SET verified = TRUE, verification_code = NULL WHERE email = $1',
+                values: [email]
+            });
+            res.json({ success: true, user: rows[0] });
+        } else {
+            res.status(400).json({ success: false, error: 'INVALID_CODE: Verification mismatch.' });
+        }
+    } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
 });
