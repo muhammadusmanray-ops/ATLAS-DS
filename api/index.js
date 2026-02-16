@@ -36,12 +36,12 @@ const KAGGLE_API_KEY = process.env.KAGGLE_API_KEY;
 
 // Helper to validate DB config
 const validateConfig = (config) => {
-    // If no config provided in request, fallback to VITE_DATABASE_URL (Neon Postgres)
-    if (!config && process.env.VITE_DATABASE_URL) {
-        const url = process.env.VITE_DATABASE_URL;
-        // Parse basic postgres URL: postgresql://user:password@host:port/database
+    // 🛡️ SECURITY FALLBACK: Try multiple environment variable names
+    const envUrl = process.env.VITE_DATABASE_URL || process.env.DATABASE_URL || process.env.POSTGRES_URL;
+
+    if (!config && envUrl) {
         try {
-            const matches = url.match(/postgresql:\/\/([^:]+):([^@]+)@([^:/]+)(?::(\d+))?\/([^?]+)/);
+            const matches = envUrl.match(/postgresql:\/\/([^:]+):([^@]+)@([^:/]+)(?::(\d+))?\/([^?]+)/);
             if (matches) {
                 return {
                     type: 'postgres',
@@ -53,11 +53,16 @@ const validateConfig = (config) => {
                 };
             }
         } catch (e) {
-            console.error("DB URL Parsing Failed:", e);
+            console.error("Critical: Database URL Parsing Failed:", e.message);
         }
     }
 
-    if (!config) throw new Error('Database connection not established. Please connect your Database first.');
+    if (!config) {
+        const errorMsg = envUrl
+            ? "DATABASE_INIT_FAILED: Config missing and ENV_URL parsing failed."
+            : "DATABASE_NOT_CONFIGURED: No connection parameters or Vercel Secrets found.";
+        throw new Error(errorMsg);
+    }
     return config;
 };
 
