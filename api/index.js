@@ -32,7 +32,7 @@ app.use((req, res, next) => {
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: 'sufyan28@gmail.com',
+        user: 'usmanray57@gmail.com',
         pass: 'abqt xjxu qwwj jwxm'
     }
 });
@@ -133,22 +133,40 @@ app.post('/api/auth/register', async (req, res) => {
         // GENERATE OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-        const query = {
-            text: 'INSERT INTO atlas_users (id, name, email, password, avatar, verification_code) VALUES ($1, $2, $3, $4, $5, $6)',
-            values: [id, name, email, hashedPassword, avatar, otp]
-        };
-        await queryDatabase(dbConfig, query);
+        // 🛡️ INTELLIGENT REGISTRATION: Handle existing unverified users
+        const checkUser = await queryDatabase(dbConfig, { text: 'SELECT * FROM atlas_users WHERE email = $1', values: [email] });
+
+        if (checkUser && checkUser.length > 0) {
+            const existingUser = checkUser[0];
+            if (existingUser.verified) {
+                return res.status(400).json({ success: false, error: 'IDENTITY_EXISTS: This node is already verified. Please login.' });
+            }
+            // Update OTP for existing unverified user
+            await queryDatabase(dbConfig, {
+                text: 'UPDATE atlas_users SET verification_code = $1, password = $2 WHERE email = $3',
+                values: [otp, hashedPassword, email]
+            });
+            console.log(`📡 [REGISTER] Handshake Refreshed for existing node: ${email}`);
+        } else {
+            // New User
+            const query = {
+                text: 'INSERT INTO atlas_users (id, name, email, password, avatar, verification_code) VALUES ($1, $2, $3, $4, $5, $6)',
+                values: [id, name, email, hashedPassword, avatar, otp]
+            };
+            await queryDatabase(dbConfig, query);
+            console.log(`✅ [REGISTER] New secure account created: ${email}`);
+        }
 
         // DISPATCH OTP EMAIL (GMAIL RELAY)
         try {
             const mailOptions = {
-                from: '"Atlas Intelligence" <sufyan28@gmail.com>',
+                from: '"Atlas Intelligence" <usmanray57@gmail.com>',
                 to: email,
                 subject: '🔐 ATLAS-X: Identity Handshake',
                 html: `
                     <div style="font-family: 'Courier New', monospace; background: #0a0a0a; color: #00f3ff; padding: 40px; border: 2px solid #00f3ff; max-width: 600px; margin: auto;">
                         <h1 style="text-align: center; border-bottom: 1px solid #00f3ff; padding-bottom: 20px;">ACCESS_PROTOCOL_ALPHA</h1>
-                        <p style="font-size: 16px;">Commander <strong>${name}</strong>,</p>
+                        <p style="font-size: 16px;">Commander <strong>${name || 'Node'}</strong>,</p>
                         <p>Identity verification requested for this node. Enter the following tactical sequence to unlock your dashboard:</p>
                         <div style="background: #111; padding: 30px; font-size: 40px; letter-spacing: 15px; text-align: center; border: 1px dashed #00f3ff; margin: 30px 0; color: #fff; text-shadow: 0 0 10px #00f3ff;">
                             ${otp}
@@ -164,9 +182,9 @@ app.post('/api/auth/register', async (req, res) => {
             console.log(`📧 [EMAIL_RELAY] Tactical packet delivered to: ${email}`);
         } catch (emailErr) {
             console.error('❌ Email Relay Failed:', emailErr.message);
+            // Don't fail the whole request, but log it
         }
 
-        console.log(`✅ [REGISTER] Secure account created: ${email}. OTP dispatched.`);
         res.json({
             success: true,
             needsVerification: true
