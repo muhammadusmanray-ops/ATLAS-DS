@@ -69,6 +69,10 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
       if (mode === 'register' && data.needsVerification) {
         addLog("DISPATCHED: Security code sent to inbox.");
+        if (data._hint) {
+          console.log("🛠️ [ALPHA_DIAGNOSTIC] Verification Code:", data._hint);
+          addLog("HINT: Check browser console (F12) if email delayed.");
+        }
         setMode('verify');
         return;
       }

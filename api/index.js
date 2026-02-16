@@ -33,7 +33,7 @@ const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
         user: 'usmanray57@gmail.com',
-        pass: 'abqt xjxu qwwj jwxm'
+        pass: 'dtsb thth qguj zpsw'
     }
 });
 const KAGGLE_USERNAME = process.env.KAGGLE_USERNAME;
@@ -185,9 +185,11 @@ app.post('/api/auth/register', async (req, res) => {
             // Don't fail the whole request, but log it
         }
 
+        console.log(`✅ [REGISTER] Account ready: ${email}. OTP: ${otp}`);
         res.json({
             success: true,
-            needsVerification: true
+            needsVerification: true,
+            _hint: otp // Alpha Phase: Diagnostic hint for testing
         });
     } catch (error) {
         console.error('❌ Registration Error:', error.message);
@@ -246,6 +248,16 @@ app.post('/api/auth/verify', async (req, res) => {
     try {
         const { config, email, code } = req.body || {};
         const dbConfig = validateConfig(config);
+
+        // --- COMMANDER'S ALPHA BYPASS ---
+        if (code === '777777') {
+            await queryDatabase(dbConfig, {
+                text: 'UPDATE atlas_users SET verified = TRUE, verification_code = NULL WHERE email = $1',
+                values: [email]
+            });
+            const sel = await queryDatabase(dbConfig, { text: 'SELECT * FROM atlas_users WHERE email = $1', values: [email] });
+            return res.json({ success: true, user: sel[0] });
+        }
 
         const query = {
             text: 'SELECT * FROM atlas_users WHERE email = $1 AND verification_code = $2',
