@@ -47,46 +47,50 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     setLoading(true);
     addLog(`${mode.toUpperCase()}_ATTEMPT: ${formData.email}`);
 
-    const configStr = localStorage.getItem('atlas_active_db_config');
-    const config = configStr ? JSON.parse(configStr) : null;
-
     try {
-      if (mode === 'register') {
-        const newUser = {
-          id: `usr_${Date.now()}`,
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.name}`,
-          config
-        };
+      // 🛡️ ChatGPT-Style Strict Validation
+      const endpoint = mode === 'register' ? '/api/auth/register' : '/api/auth/login';
 
-        const res = await fetch('/api/auth/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newUser)
-        });
-        const data = await res.json();
-        if (!data.success) throw new Error(data.error);
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          ...formData,
+          id: mode === 'register' ? `usr_${Date.now()}` : undefined,
+          avatar: mode === 'register' ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.name}` : undefined
+        })
+      });
 
-        addLog("IDENTITY_CREATED: Welcome Commander.");
-        onLogin(newUser as any);
-      } else {
-        // LOGIN
-        const res = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: formData.email, password: formData.password, config })
-        });
-        const data = await res.json();
-        if (!data.success) throw new Error(data.error);
-
-        addLog("ACCESS_GRANTED: Handshake Complete.");
-        onLogin(data.user);
+      // Handle non-JSON responses (like Vercel 405s) gracefully
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await res.text();
+        console.error("Backend Error:", text);
+        throw new Error("SYSTEM_CRITICAL: Unified Logic Sector Unreachable. Check Routing.");
       }
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "CREDENTIAL_MISMATCH: Access Refused.");
+      }
+
+      // Success Path
+      addLog(mode === 'register' ? "IDENTITY_CREATED: Welcome Commander." : "ACCESS_GRANTED: Handshake Complete.");
+
+      // Persist Session like ChatGPT
+      const userToSave = mode === 'register' ? { ...formData, id: `usr_${Date.now()}`, rank: 'Lead Scientist' } : data.user;
+      localStorage.setItem('ATLAS_USER_SESSION', JSON.stringify(userToSave));
+
+      setTimeout(() => onLogin(userToSave), 800);
+
     } catch (err: any) {
-      setError(err.message || "PROTOCOL_ERROR: Authentication failed.");
-      addLog(`DENIED: ${err.message}`);
+      console.error("Auth Exception:", err);
+      setError(err.message || "PROTOCOL_ERROR: Authentication sequence failed.");
+      addLog(`DENIED: Security Protocols Active.`);
     } finally {
       setLoading(false);
     }
