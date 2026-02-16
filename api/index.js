@@ -170,11 +170,8 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 
-// --- AUTH: LOGIN (PLACEHOLDER FOR GEMINI UPDATE) ---
-app.post('/api/auth/login', async (req, res) => {
-    // Waiting for new Gemini Secure Logic...
-    res.status(503).json({ success: false, error: "System Upgrade in Progress. Standby." });
-});
+// --- API ENDPOINTS CLEARED FOR GEMINI INTEGRATION ---
+// Waiting for new auth & history logic...
 
 app.post('/api/auth/verify', async (req, res) => {
     try {
