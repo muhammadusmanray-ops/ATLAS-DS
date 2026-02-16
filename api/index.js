@@ -169,96 +169,11 @@ app.post('/api/auth/register', async (req, res) => {
     }
 });
 
+
+// --- AUTH: LOGIN (PLACEHOLDER FOR GEMINI UPDATE) ---
 app.post('/api/auth/login', async (req, res) => {
-    try {
-        const { config, email, password } = req.body || {};
-        const dbConfig = validateConfig(config);
-
-        // Auto-init for fallback
-        await queryDatabase(dbConfig, `CREATE TABLE IF NOT EXISTS atlas_users (id TEXT PRIMARY KEY, name TEXT, email TEXT UNIQUE, password TEXT, avatar TEXT, rank TEXT DEFAULT 'Lead Scientist');`);
-
-        const query = {
-            text: 'SELECT * FROM atlas_users WHERE email = $1',
-            values: [email]
-        };
-        const rows = await queryDatabase(dbConfig, query);
-
-        if (rows && rows.length > 0) {
-            const user = rows[0];
-
-            if (!user.verified) {
-                console.log(`📡 [SECURITY] Verification Required for: ${email}`);
-
-                // --- AUTO-RESEND OTP LOGIC ---
-                try {
-                    const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
-
-                    // Update DB with new OTP
-                    await queryDatabase(dbConfig, {
-                        text: 'UPDATE atlas_users SET verification_code = $1 WHERE email = $2',
-                        values: [newOtp, email]
-                    });
-
-                    // Send Email via Brevo
-                    if (brevoClient) {
-                        const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-                        sendSmtpEmail.sender = { name: 'Atlas Intelligence', email: 'sufyar28@gmail.com' };
-                        sendSmtpEmail.to = [{ email: email }];
-                        sendSmtpEmail.subject = '🔐 ATLAS-X: Login Verification Code';
-                        sendSmtpEmail.htmlContent = `
-                            <div style="font-family: 'Courier New', monospace; background: #0a0a0a; color: #00f3ff; padding: 40px; border: 2px solid #00f3ff; max-width: 600px; margin: auto;">
-                                <h1 style="text-align: center; border-bottom: 1px solid #00f3ff; padding-bottom: 20px;">IDENTITY_VERIFICATION</h1>
-                                <p style="font-size: 16px;">Commander <strong>${user.name}</strong>,</p>
-                                <p>Login attempt detected for unverified node. Use this code to access the secure gateway:</p>
-                                <div style="background: #111; padding: 30px; font-size: 40px; letter-spacing: 15px; text-align: center; border: 1px dashed #00f3ff; margin: 30px 0; color: #fff; text-shadow: 0 0 10px #00f3ff;">
-                                    ${newOtp}
-                                </div>
-                                <p style="color: #ff00ff; font-size: 12px; text-align: center;">[ WARNING: This code expires in 10 minutes ]</p>
-                                <div style="margin-top: 40px; font-size: 10px; color: #444; text-align: center;">
-                                    SECURE GATEWAY v8.3 | AUTO-DISPATCH | BREVO RELAY
-                                </div>
-                            </div>
-                        `;
-                        await brevoClient.sendTransacEmail(sendSmtpEmail);
-                        console.log(`📧 [AUTO-RESEND] OTP dispatched to: ${email} from VERIFIED sender sufyar28@gmail.com`);
-                    } else {
-                        console.warn("⚠️ [BREVO] Client not initialized, skipping email.");
-                    }
-
-                } catch (resendErr) {
-                    // CRITICAL: Don't let email failure crash the login response
-                    console.error("❌ Resend Failed (Non-Fatal):", resendErr.message);
-                    if (resendErr.response) {
-                        console.error("❌ Brevo Response:", JSON.stringify(resendErr.response.body));
-                    }
-                }
-
-                return res.status(403).json({
-                    success: false,
-                    error: 'IDENTITY_PENDING: Verification code sent to your email.',
-                    needsVerification: true
-                });
-            }
-
-            // COMPARE Hash
-            const isMatch = await bcrypt.compare(password, user.password);
-
-            if (isMatch) {
-                console.log(`✅ [LOGIN] Authenticated: ${email}`);
-                // Remove password from response for security
-                const { password: _, verification_code: __, ...userWithoutPassword } = user;
-                res.json({ success: true, user: userWithoutPassword });
-            } else {
-                res.status(401).json({ success: false, error: 'Invalid Credentials' });
-            }
-        } else {
-            console.warn(`⚠️ [LOGIN] Access Denied: ${email}`);
-            res.status(401).json({ success: false, error: 'Invalid Credentials' });
-        }
-    } catch (error) {
-        console.error('❌ Login Error:', error.message);
-        res.status(500).json({ success: false, error: error.message });
-    }
+    // Waiting for new Gemini Secure Logic...
+    res.status(503).json({ success: false, error: "System Upgrade in Progress. Standby." });
 });
 
 app.post('/api/auth/verify', async (req, res) => {
