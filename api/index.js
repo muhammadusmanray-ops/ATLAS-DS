@@ -117,81 +117,52 @@ app.post('/api/auth/register', async (req, res) => {
         // Force-add columns if table existed previously without them
         try {
             await queryDatabase(dbConfig, `ALTER TABLE atlas_users ADD COLUMN IF NOT EXISTS verified BOOLEAN DEFAULT FALSE;`);
-            await queryDatabase(dbConfig, `ALTER TABLE atlas_users ADD COLUMN IF NOT EXISTS verification_code TEXT;`);
-        } catch (migErr) {
-            console.warn("Migration Notice (Safe to ignore if columns exist):", migErr.message);
-        }
+            const dbConfig = validateConfig(config);
 
-        // HASH PASSWORD
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
+            // Auto-init for fallback
+            await queryDatabase(dbConfig, `CREATE TABLE IF NOT EXISTS atlas_users (id TEXT PRIMARY KEY, name TEXT, email TEXT UNIQUE, password TEXT, avatar TEXT, rank TEXT DEFAULT 'Lead Scientist', verified BOOLEAN DEFAULT FALSE, verification_code TEXT);`);
 
-        // GENERATE OTP
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+            // Check if user exists
+            const checkUser = await queryDatabase(dbConfig, { text: 'SELECT * FROM atlas_users WHERE email = $1', values: [email] });
 
-        // 🛡️ INTELLIGENT REGISTRATION: Handle existing unverified users
-        const checkUser = await queryDatabase(dbConfig, { text: 'SELECT * FROM atlas_users WHERE email = $1', values: [email] });
+            const otp = Math.floor(100000 + Math.random() * 900000).toString();
+            const hashedPassword = await bcrypt.hash(password, 10);
+            const id = Math.random().toString(36).substr(2, 9);
 
-        if (checkUser && checkUser.length > 0) {
-            const existingUser = checkUser[0];
-            if (existingUser.verified) {
-                return res.status(400).json({ success: false, error: 'IDENTITY_EXISTS: This node is already verified. Please login.' });
-            }
-            // Update OTP for existing unverified user
-            await queryDatabase(dbConfig, {
-                text: 'UPDATE atlas_users SET verification_code = $1, password = $2 WHERE email = $3',
-                values: [otp, hashedPassword, email]
-            });
-            console.log(`📡 [REGISTER] Handshake Refreshed for existing node: ${email}`);
-        } else {
-            // New User
-            const query = {
-                text: 'INSERT INTO atlas_users (id, name, email, password, avatar, verification_code) VALUES ($1, $2, $3, $4, $5, $6)',
-                values: [id, name, email, hashedPassword, avatar, otp]
-            };
-            await queryDatabase(dbConfig, query);
-            console.log(`✅ [REGISTER] New secure account created: ${email}`);
-        }
-
-        // DISPATCH OTP EMAIL (RESEND API)
-        try {
-            const { data, error } = await resend.emails.send({
-                from: 'Atlas Intelligence <onboarding@resend.dev>', // ⚠️ CHANGE THIS to your verified domain (e.g., security@atlas-ds.com)
-                to: [email],
-                subject: '🔐 ATLAS-X: Identity Handshake',
-                html: `
-                <div style="font-family: 'Courier New', monospace; background: #0a0a0a; color: #00f3ff; padding: 40px; border: 2px solid #00f3ff; max-width: 600px; margin: auto;">
-                    <h1 style="text-align: center; border-bottom: 1px solid #00f3ff; padding-bottom: 20px;">ACCESS_PROTOCOL_ALPHA</h1>
-                    <p style="font-size: 16px;">Commander <strong>${name || 'Node'}</strong>,</p>
-                    <p>Identity verification requested for this node. Enter the following tactical sequence to unlock your dashboard:</p>
-                    <div style="background: #111; padding: 30px; font-size: 40px; letter-spacing: 15px; text-align: center; border: 1px dashed #00f3ff; margin: 30px 0; color: #fff; text-shadow: 0 0 10px #00f3ff;">
-                        ${otp}
-                    </div>
-                    <p style="color: #ff00ff; font-size: 12px; text-align: center;">[ WARNING: This code expires in 10 minutes ]</p>
-                    <div style="margin-top: 40px; font-size: 10px; color: #444; text-align: center;">
-                        SECURE GATEWAY v9.0 | RESEND GRID | NEON_PROTOCOL ACTIVE
-                    </div>
-                </div>
-                `
-            });
-
-            if (error) {
-                console.error('❌ Resend API Error:', error);
-                // We log but don't stop execution, user needs to know email failed though?
-                // For now, we continue as it's a soft fail in the current logic
+            if (checkUser && checkUser.length > 0) {
+                const existingUser = checkUser[0];
+                if (existingUser.verified) {
+                    return res.status(400).json({ success: false, error: 'IDENTITY_EXISTS: User already verified.' });
+                }
+                // Update Existing Unverified
+                await queryDatabase(dbConfig, {
+                    text: 'UPDATE atlas_users SET verification_code = $1, password = $2 WHERE email = $3',
+                    values: [otp, hashedPassword, email]
+                });
+                console.log(`🔄 [REGISTER] Refreshed OTP for: ${email}`);
             } else {
-                console.log(`📧 [RESEND_GRID] Tactical packet delivered to: ${email}. ID: ${data?.id}`);
+                // New User
+                await queryDatabase(dbConfig, {
+                    text: 'INSERT INTO atlas_users (id, name, email, password, avatar, verification_code, verified) VALUES ($1, $2, $3, $4, $5, $6, FALSE)',
+                    values: [id, name, email, hashedPassword, avatar, otp]
+                });
+                console.log(`✅ [REGISTER] Created user: ${email}`);
             }
-        } catch (emailErr) {
-            console.error('❌ Email Dispatch Critical Failure:', emailErr.message);
+
+            // SEND EMAIL
+            await sendVerificationEmail(email, name, otp);
+
+            res.json({
+                success: true,
+                needsVerification: true,
+                _hint: otp // Diagnostic
+            });
+
+        } catch (error) {
+            console.error('❌ Registration Error (Inner Try):', error.message);
+            res.status(500).json({ success: false, error: error.message });
         }
 
-        console.log(`✅ [REGISTER] Account ready: ${email}. OTP: ${otp}`);
-        res.json({
-            success: true,
-            needsVerification: true,
-            _hint: otp // Alpha Phase: Diagnostic hint for testing
-        });
     } catch (error) {
         console.error('❌ Registration Error:', error.message);
         res.status(500).json({ success: false, error: error.message });
@@ -229,29 +200,37 @@ app.post('/api/auth/login', async (req, res) => {
                     });
 
                     // Send Email via Brevo
-                    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-                    sendSmtpEmail.sender = { name: 'Atlas Intelligence', email: 'sufyar28@gmail.com' };
-                    sendSmtpEmail.to = [{ email: email }];
-                    sendSmtpEmail.subject = '🔐 ATLAS-X: Login Verification Code';
-                    sendSmtpEmail.htmlContent = `
-                        <div style="font-family: 'Courier New', monospace; background: #0a0a0a; color: #00f3ff; padding: 40px; border: 2px solid #00f3ff; max-width: 600px; margin: auto;">
-                            <h1 style="text-align: center; border-bottom: 1px solid #00f3ff; padding-bottom: 20px;">IDENTITY_VERIFICATION</h1>
-                            <p style="font-size: 16px;">Commander <strong>${user.name}</strong>,</p>
-                            <p>Login attempt detected for unverified node. Use this code to access the secure gateway:</p>
-                            <div style="background: #111; padding: 30px; font-size: 40px; letter-spacing: 15px; text-align: center; border: 1px dashed #00f3ff; margin: 30px 0; color: #fff; text-shadow: 0 0 10px #00f3ff;">
-                                ${newOtp}
+                    if (brevoClient) {
+                        const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+                        sendSmtpEmail.sender = { name: 'Atlas Intelligence', email: 'sufyar28@gmail.com' };
+                        sendSmtpEmail.to = [{ email: email }];
+                        sendSmtpEmail.subject = '🔐 ATLAS-X: Login Verification Code';
+                        sendSmtpEmail.htmlContent = `
+                            <div style="font-family: 'Courier New', monospace; background: #0a0a0a; color: #00f3ff; padding: 40px; border: 2px solid #00f3ff; max-width: 600px; margin: auto;">
+                                <h1 style="text-align: center; border-bottom: 1px solid #00f3ff; padding-bottom: 20px;">IDENTITY_VERIFICATION</h1>
+                                <p style="font-size: 16px;">Commander <strong>${user.name}</strong>,</p>
+                                <p>Login attempt detected for unverified node. Use this code to access the secure gateway:</p>
+                                <div style="background: #111; padding: 30px; font-size: 40px; letter-spacing: 15px; text-align: center; border: 1px dashed #00f3ff; margin: 30px 0; color: #fff; text-shadow: 0 0 10px #00f3ff;">
+                                    ${newOtp}
+                                </div>
+                                <p style="color: #ff00ff; font-size: 12px; text-align: center;">[ WARNING: This code expires in 10 minutes ]</p>
+                                <div style="margin-top: 40px; font-size: 10px; color: #444; text-align: center;">
+                                    SECURE GATEWAY v8.3 | AUTO-DISPATCH | BREVO RELAY
+                                </div>
                             </div>
-                            <p style="color: #ff00ff; font-size: 12px; text-align: center;">[ WARNING: This code expires in 10 minutes ]</p>
-                            <div style="margin-top: 40px; font-size: 10px; color: #444; text-align: center;">
-                                SECURE GATEWAY v8.2 | AUTO-DISPATCH | BREVO RELAY
-                            </div>
-                        </div>
-                    `;
-                    await brevoClient.sendTransacEmail(sendSmtpEmail);
-                    console.log(`📧 [AUTO-RESEND] OTP dispatched to: ${email} from VERIFIED sender sufyar28@gmail.com`);
+                        `;
+                        await brevoClient.sendTransacEmail(sendSmtpEmail);
+                        console.log(`📧 [AUTO-RESEND] OTP dispatched to: ${email} from VERIFIED sender sufyar28@gmail.com`);
+                    } else {
+                        console.warn("⚠️ [BREVO] Client not initialized, skipping email.");
+                    }
 
                 } catch (resendErr) {
-                    console.error("❌ Resend Failed:", resendErr.message);
+                    // CRITICAL: Don't let email failure crash the login response
+                    console.error("❌ Resend Failed (Non-Fatal):", resendErr.message);
+                    if (resendErr.response) {
+                        console.error("❌ Brevo Response:", JSON.stringify(resendErr.response.body));
+                    }
                 }
 
                 return res.status(403).json({
