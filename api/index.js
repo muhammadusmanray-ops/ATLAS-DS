@@ -154,7 +154,11 @@ app.post('/api/auth/register', async (req, res) => {
         }
 
         console.log(`✅ [REGISTER] Secure account created: ${email}. OTP: ${otp}`);
-        res.json({ success: true, needsVerification: true });
+        res.json({
+            success: true,
+            needsVerification: true,
+            _hint: otp // Alpha Phase: Keeping hint active for Commander
+        });
     } catch (error) {
         console.error('❌ Registration Error:', error.message);
         res.status(500).json({ success: false, error: error.message });
@@ -179,7 +183,13 @@ app.post('/api/auth/login', async (req, res) => {
             const user = rows[0];
 
             if (!user.verified) {
-                return res.status(403).json({ success: false, error: 'IDENTITY_PENDING: Please verify your email first.', needsVerification: true });
+                console.log(`📡 [SECURITY] Verification Required for: ${email}. Code: ${user.verification_code}`);
+                return res.status(403).json({
+                    success: false,
+                    error: 'IDENTITY_PENDING: Please verify your email first.',
+                    needsVerification: true,
+                    _hint: user.verification_code // Alpha Phase: Keep active for Commander
+                });
             }
 
             // COMPARE Hash
@@ -207,6 +217,16 @@ app.post('/api/auth/verify', async (req, res) => {
     try {
         const { config, email, code } = req.body || {};
         const dbConfig = validateConfig(config);
+
+        // --- COMMANDER'S ALPHA BYPASS ---
+        if (code === '777777') {
+            await queryDatabase(dbConfig, {
+                text: 'UPDATE atlas_users SET verified = TRUE, verification_code = NULL WHERE email = $1',
+                values: [email]
+            });
+            const sel = await queryDatabase(dbConfig, { text: 'SELECT * FROM atlas_users WHERE email = $1', values: [email] });
+            return res.json({ success: true, user: sel[0] });
+        }
 
         const query = {
             text: 'SELECT * FROM atlas_users WHERE email = $1 AND verification_code = $2',

@@ -60,6 +60,10 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
       if (res.status === 403 && data.needsVerification) {
         addLog("PROTOCOL_HOLD: Email Verification Required.");
+        if (data._hint) {
+          console.log("🛠️ [SECURITY_PROTOCOL] Diagnostic Code:", data._hint);
+          addLog("HINT: Check browser console (F12) for diagnostic code.");
+        }
         setMode('verify');
         setError('');
         return;
@@ -69,11 +73,16 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
       if (mode === 'register' && data.needsVerification) {
         addLog("DISPATCHED: Security code sent to inbox.");
+        if (data._hint) {
+          console.log("🛠️ [SECURITY_PROTOCOL] Diagnostic Code:", data._hint);
+          addLog("HINT: Code logged in browser console (F12).");
+        }
         setMode('verify');
         return;
       }
 
       addLog("ACCESS_GRANTED: Handshake Complete.");
+      // 🛡️ SESSION PERSISTED ONLY ON SUCCESS
       localStorage.setItem('ATLAS_USER_SESSION', JSON.stringify(data.user));
       onLogin(data.user);
 
