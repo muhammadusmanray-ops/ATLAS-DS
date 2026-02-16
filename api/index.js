@@ -37,6 +37,44 @@ const KAGGLE_API_KEY = process.env.KAGGLE_API_KEY;
 
 // --- AUTHENTICATION & USERS (NEON PERSISTENCE) ---
 
+// Helper: Send Brevo Email
+const sendVerificationEmail = async (email, name, otp) => {
+    if (!process.env.BREVO_API_KEY) {
+        console.warn("⚠️ [BREVO] API Key Missing - Email skipped");
+        return;
+    }
+
+    try {
+        const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+        apiInstance.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
+
+        const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+        sendSmtpEmail.subject = "🔐 ATLAS-X: Verification Code";
+        sendSmtpEmail.sender = { "name": "Atlas Intelligence", "email": "sufyar28@gmail.com" };
+        sendSmtpEmail.to = [{ "email": email, "name": name }];
+        sendSmtpEmail.htmlContent = `
+            <div style="font-family: 'Courier New', monospace; background: #0a0a0a; color: #00f3ff; padding: 40px; border: 2px solid #00f3ff; max-width: 600px; margin: auto;">
+                <h1 style="text-align: center; border-bottom: 1px solid #00f3ff; padding-bottom: 20px;">IDENTITY_VERIFICATION</h1>
+                <p style="font-size: 16px;">Commander <strong>${name}</strong>,</p>
+                <p>Use this secure code to access the gateway:</p>
+                <div style="background: #111; padding: 30px; font-size: 40px; letter-spacing: 15px; text-align: center; border: 1px dashed #00f3ff; margin: 30px 0; color: #fff; text-shadow: 0 0 10px #00f3ff;">
+                    ${otp}
+                </div>
+                <p style="color: #ff00ff; font-size: 12px; text-align: center;">[ WARNING: This code expires in 10 minutes ]</p>
+                <div style="margin-top: 40px; font-size: 10px; color: #444; text-align: center;">
+                    SECURE GATEWAY v8.3 | AUTO-DISPATCH | BREVO RELAY
+                </div>
+            </div>
+        `;
+
+        await apiInstance.sendTransacEmail(sendSmtpEmail);
+        console.log(`📧 [BREVO] Verification email sent to: ${email}`);
+    } catch (error) {
+        console.error("❌ [BREVO] Send Failed:", error.message);
+        // We don't throw here to prevent crashing the whole auth flow if email fails
+    }
+};
+
 // Helper to validate DB config
 const validateConfig = (config) => {
     // 🛡️ SECURITY FALLBACK: Try multiple environment variable names
