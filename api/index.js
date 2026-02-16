@@ -96,7 +96,7 @@ app.post('/api/auth/register', async (req, res) => {
         const { config, id, name, email, password, avatar } = req.body || {};
         const dbConfig = validateConfig(config);
 
-        // Auto-init for fallback (including verification fields)
+        // 🛠️ SCHEMA EVOLUTION: Ensure existing table matches new Security Protocol
         await queryDatabase(dbConfig, `
             CREATE TABLE IF NOT EXISTS atlas_users (
                 id TEXT PRIMARY KEY, 
@@ -109,6 +109,14 @@ app.post('/api/auth/register', async (req, res) => {
                 verification_code TEXT
             );
         `);
+
+        // Force-add columns if table existed previously without them
+        try {
+            await queryDatabase(dbConfig, `ALTER TABLE atlas_users ADD COLUMN IF NOT EXISTS verified BOOLEAN DEFAULT FALSE;`);
+            await queryDatabase(dbConfig, `ALTER TABLE atlas_users ADD COLUMN IF NOT EXISTS verification_code TEXT;`);
+        } catch (migErr) {
+            console.warn("Migration Notice (Safe to ignore if columns exist):", migErr.message);
+        }
 
         // HASH PASSWORD
         const salt = await bcrypt.genSalt(10);
