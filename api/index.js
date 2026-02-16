@@ -28,10 +28,9 @@ app.use((req, res, next) => {
     next();
 });
 
-// --- BREVO EMAIL PROTOCOL (Professional SMTP) ---
-const brevoClient = new SibApiV3Sdk.TransactionalEmailsApi();
-const brevoApiKey = brevoClient.authentications['apiKey'];
-brevoApiKey.apiKey = process.env.BREVO_API_KEY || 'your-brevo-api-key-here';
+// --- RESEND EMAIL PROTOCOL (Modern API) ---
+import { Resend } from 'resend';
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const KAGGLE_USERNAME = process.env.KAGGLE_USERNAME;
 const KAGGLE_API_KEY = process.env.KAGGLE_API_KEY;
@@ -154,13 +153,13 @@ app.post('/api/auth/register', async (req, res) => {
             console.log(`✅ [REGISTER] New secure account created: ${email}`);
         }
 
-        // DISPATCH OTP EMAIL (BREVO RELAY)
+        // DISPATCH OTP EMAIL (RESEND API)
         try {
-            const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-            sendSmtpEmail.sender = { name: 'Atlas Intelligence', email: 'usmanray57@gmail.com' };
-            sendSmtpEmail.to = [{ email: email }];
-            sendSmtpEmail.subject = '🔐 ATLAS-X: Identity Handshake';
-            sendSmtpEmail.htmlContent = `
+            const { data, error } = await resend.emails.send({
+                from: 'Atlas Intelligence <onboarding@resend.dev>', // ⚠️ CHANGE THIS to your verified domain (e.g., security@atlas-ds.com)
+                to: [email],
+                subject: '🔐 ATLAS-X: Identity Handshake',
+                html: `
                 <div style="font-family: 'Courier New', monospace; background: #0a0a0a; color: #00f3ff; padding: 40px; border: 2px solid #00f3ff; max-width: 600px; margin: auto;">
                     <h1 style="text-align: center; border-bottom: 1px solid #00f3ff; padding-bottom: 20px;">ACCESS_PROTOCOL_ALPHA</h1>
                     <p style="font-size: 16px;">Commander <strong>${name || 'Node'}</strong>,</p>
@@ -170,16 +169,21 @@ app.post('/api/auth/register', async (req, res) => {
                     </div>
                     <p style="color: #ff00ff; font-size: 12px; text-align: center;">[ WARNING: This code expires in 10 minutes ]</p>
                     <div style="margin-top: 40px; font-size: 10px; color: #444; text-align: center;">
-                        SECURE GATEWAY v8.0 | BREVO RELAY | NEON_PROTOCOL ACTIVE
+                        SECURE GATEWAY v9.0 | RESEND GRID | NEON_PROTOCOL ACTIVE
                     </div>
                 </div>
-            `;
+                `
+            });
 
-            await brevoClient.sendTransacEmail(sendSmtpEmail);
-            console.log(`📧 [BREVO_RELAY] Tactical packet delivered to: ${email}`);
+            if (error) {
+                console.error('❌ Resend API Error:', error);
+                // We log but don't stop execution, user needs to know email failed though?
+                // For now, we continue as it's a soft fail in the current logic
+            } else {
+                console.log(`📧 [RESEND_GRID] Tactical packet delivered to: ${email}. ID: ${data?.id}`);
+            }
         } catch (emailErr) {
-            console.error('❌ Email Relay Failed:', emailErr.message);
-            // Don't fail the whole request, but log it
+            console.error('❌ Email Dispatch Critical Failure:', emailErr.message);
         }
 
         console.log(`✅ [REGISTER] Account ready: ${email}. OTP: ${otp}`);
@@ -213,9 +217,46 @@ app.post('/api/auth/login', async (req, res) => {
 
             if (!user.verified) {
                 console.log(`📡 [SECURITY] Verification Required for: ${email}`);
+
+                // --- AUTO-RESEND OTP LOGIC ---
+                try {
+                    const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
+
+                    // Update DB with new OTP
+                    await queryDatabase(dbConfig, {
+                        text: 'UPDATE atlas_users SET verification_code = $1 WHERE email = $2',
+                        values: [newOtp, email]
+                    });
+
+                    // Send Email via Brevo
+                    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+                    sendSmtpEmail.sender = { name: 'Atlas Intelligence', email: 'sufyar28@gmail.com' };
+                    sendSmtpEmail.to = [{ email: email }];
+                    sendSmtpEmail.subject = '🔐 ATLAS-X: Login Verification Code';
+                    sendSmtpEmail.htmlContent = `
+                        <div style="font-family: 'Courier New', monospace; background: #0a0a0a; color: #00f3ff; padding: 40px; border: 2px solid #00f3ff; max-width: 600px; margin: auto;">
+                            <h1 style="text-align: center; border-bottom: 1px solid #00f3ff; padding-bottom: 20px;">IDENTITY_VERIFICATION</h1>
+                            <p style="font-size: 16px;">Commander <strong>${user.name}</strong>,</p>
+                            <p>Login attempt detected for unverified node. Use this code to access the secure gateway:</p>
+                            <div style="background: #111; padding: 30px; font-size: 40px; letter-spacing: 15px; text-align: center; border: 1px dashed #00f3ff; margin: 30px 0; color: #fff; text-shadow: 0 0 10px #00f3ff;">
+                                ${newOtp}
+                            </div>
+                            <p style="color: #ff00ff; font-size: 12px; text-align: center;">[ WARNING: This code expires in 10 minutes ]</p>
+                            <div style="margin-top: 40px; font-size: 10px; color: #444; text-align: center;">
+                                SECURE GATEWAY v8.2 | AUTO-DISPATCH | BREVO RELAY
+                            </div>
+                        </div>
+                    `;
+                    await brevoClient.sendTransacEmail(sendSmtpEmail);
+                    console.log(`📧 [AUTO-RESEND] OTP dispatched to: ${email} from VERIFIED sender sufyar28@gmail.com`);
+
+                } catch (resendErr) {
+                    console.error("❌ Resend Failed:", resendErr.message);
+                }
+
                 return res.status(403).json({
                     success: false,
-                    error: 'IDENTITY_PENDING: Please verify your email first.',
+                    error: 'IDENTITY_PENDING: Verification code sent to your email.',
                     needsVerification: true
                 });
             }
