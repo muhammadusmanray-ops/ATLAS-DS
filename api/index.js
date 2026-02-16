@@ -70,6 +70,7 @@ const validateConfig = (config) => {
 app.post('/api/auth/init', async (req, res) => {
     try {
         const { config } = req.body || {};
+        const dbConfig = validateConfig(config);
         const createTable = `
             CREATE TABLE IF NOT EXISTS atlas_users (
                 id TEXT PRIMARY KEY,
@@ -80,7 +81,7 @@ app.post('/api/auth/init', async (req, res) => {
                 rank TEXT DEFAULT 'Lead Scientist'
             );
         `;
-        await queryDatabase(config, createTable);
+        await queryDatabase(dbConfig, createTable);
         res.json({ success: true, message: 'Identity Vault Initialized' });
     } catch (error) {
         console.error('❌ Auth Init Error:', error.message);
@@ -91,9 +92,10 @@ app.post('/api/auth/init', async (req, res) => {
 app.post('/api/auth/register', async (req, res) => {
     try {
         const { config, id, name, email, password, avatar } = req.body || {};
+        const dbConfig = validateConfig(config);
 
         // Auto-init for fallback
-        await queryDatabase(config, `CREATE TABLE IF NOT EXISTS atlas_users (id TEXT PRIMARY KEY, name TEXT, email TEXT UNIQUE, password TEXT, avatar TEXT, rank TEXT DEFAULT 'Lead Scientist');`);
+        await queryDatabase(dbConfig, `CREATE TABLE IF NOT EXISTS atlas_users (id TEXT PRIMARY KEY, name TEXT, email TEXT UNIQUE, password TEXT, avatar TEXT, rank TEXT DEFAULT 'Lead Scientist');`);
 
         // HASH PASSWORD for Security
         const salt = await bcrypt.genSalt(10);
@@ -103,7 +105,7 @@ app.post('/api/auth/register', async (req, res) => {
             text: 'INSERT INTO atlas_users (id, name, email, password, avatar) VALUES ($1, $2, $3, $4, $5)',
             values: [id, name, email, hashedPassword, avatar]
         };
-        await queryDatabase(config, query);
+        await queryDatabase(dbConfig, query);
         console.log(`✅ [REGISTER] Secure account created for: ${email}`);
         res.json({ success: true });
     } catch (error) {
@@ -115,15 +117,16 @@ app.post('/api/auth/register', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { config, email, password } = req.body || {};
+        const dbConfig = validateConfig(config);
 
         // Auto-init for fallback
-        await queryDatabase(config, `CREATE TABLE IF NOT EXISTS atlas_users (id TEXT PRIMARY KEY, name TEXT, email TEXT UNIQUE, password TEXT, avatar TEXT, rank TEXT DEFAULT 'Lead Scientist');`);
+        await queryDatabase(dbConfig, `CREATE TABLE IF NOT EXISTS atlas_users (id TEXT PRIMARY KEY, name TEXT, email TEXT UNIQUE, password TEXT, avatar TEXT, rank TEXT DEFAULT 'Lead Scientist');`);
 
         const query = {
             text: 'SELECT * FROM atlas_users WHERE email = $1',
             values: [email]
         };
-        const rows = await queryDatabase(config, query);
+        const rows = await queryDatabase(dbConfig, query);
 
         if (rows && rows.length > 0) {
             const user = rows[0];
