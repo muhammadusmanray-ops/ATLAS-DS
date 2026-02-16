@@ -6,6 +6,7 @@ import axios from 'axios';
 import bcrypt from 'bcryptjs';
 import { queryDatabase } from './db-connector.js';
 import dotenv from 'dotenv';
+import SibApiV3Sdk from '@sendinblue/client';
 
 // Load env variables
 dotenv.config();
@@ -28,8 +29,6 @@ app.use((req, res, next) => {
 });
 
 // --- BREVO EMAIL PROTOCOL (Professional SMTP) ---
-import SibApiV3Sdk from '@sendinblue/client';
-
 const brevoClient = new SibApiV3Sdk.TransactionalEmailsApi();
 const brevoApiKey = brevoClient.authentications['apiKey'];
 brevoApiKey.apiKey = process.env.BREVO_API_KEY || 'your-brevo-api-key-here';
