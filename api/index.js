@@ -100,7 +100,8 @@ app.post('/api/auth/init', async (req, res) => {
 
 app.post('/api/auth/register', async (req, res) => {
     try {
-        const { config, id, name, email, password, avatar } = req.body || {};
+        const { config, name, email, password, avatar } = req.body || {};
+        const id = req.body.id || `usr_${Date.now()}`;
         const dbConfig = validateConfig(config);
 
         // 🛠️ SCHEMA EVOLUTION: Ensure existing table matches new Security Protocol

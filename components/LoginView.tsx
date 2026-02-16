@@ -128,20 +128,22 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
             <p className="text-[10px] orbitron tracking-[0.2em] text-gray-500 uppercase mt-2">Login to your account</p>
           </div>
 
-          {/* Toggle Tabs */}
+          {/* Toggle Tabs - Simplified to siff Login/Verify */}
           <div className="flex mb-8 border-b border-white/10">
             <button
-              onClick={() => { setMode('login'); setError(''); }}
-              className={`flex-1 py-3 text-[11px] orbitron font-bold uppercase tracking-widest transition-all ${mode === 'login' ? 'text-[#00f3ff] border-b-2 border-[#00f3ff]' : 'text-gray-600 hover:text-gray-400'}`}
+              className={`flex-1 py-3 text-[11px] orbitron font-black uppercase tracking-[0.3em] transition-all relative ${mode !== 'verify' ? 'text-[#00f3ff]' : 'text-gray-600'}`}
             >
-              Login
+              SECURE GATEWAY
+              {mode !== 'verify' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#00f3ff] shadow-[0_0_10px_#00f3ff]"></div>}
             </button>
-            <button
-              onClick={() => { setMode('register'); setError(''); }}
-              className={`flex-1 py-3 text-[11px] orbitron font-bold uppercase tracking-widest transition-all ${mode === 'register' ? 'text-[#ff00ff] border-b-2 border-[#ff00ff]' : 'text-gray-600 hover:text-gray-400'}`}
-            >
-              Register
-            </button>
+            {mode === 'verify' && (
+              <button
+                className="flex-1 py-3 text-[11px] orbitron font-black uppercase tracking-[0.3em] text-[#ff00ff] relative"
+              >
+                IDENTITY HANDSHAKE
+                <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#ff00ff] shadow-[0_0_10px_#ff00ff]"></div>
+              </button>
+            )}
           </div>
 
           {/* Form */}
@@ -152,11 +154,11 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                   <div className="w-10 h-10 bg-[#00f3ff]/10 rounded border border-[#00f3ff]/30 flex items-center justify-center mx-auto mb-2">
                     <i className="fa-solid fa-envelope-open-text text-[#00f3ff] text-sm"></i>
                   </div>
-                  <h3 className="orbitron text-[10px] text-white font-bold tracking-[0.2em] uppercase">Enter Handshake Code</h3>
-                  <p className="text-[9px] text-gray-500 mt-1">Verification sent to: <span className="text-gray-300">{formData.email}</span></p>
+                  <h3 className="orbitron text-[10px] text-white font-bold tracking-[0.2em] uppercase">Enter Protocol Code</h3>
+                  <p className="text-[9px] text-gray-500 mt-1">Verification dispatched to authorized nodes.</p>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] orbitron font-bold text-gray-500 uppercase tracking-widest">6-Digit Code</label>
+                  <label className="text-[10px] orbitron font-bold text-gray-500 uppercase tracking-widest">6-Digit Cipher</label>
                   <input
                     type="text"
                     required
@@ -170,20 +172,6 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
               </div>
             ) : (
               <>
-                {mode === 'register' && (
-                  <div className="space-y-1 animate-in fade-in slide-in-from-right-4 duration-300">
-                    <label className="text-[10px] orbitron font-bold text-gray-500 uppercase tracking-widest">Your Name</label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.name}
-                      onChange={e => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full bg-black border border-white/20 p-3 text-sm text-white outline-none focus:border-[#ff00ff] transition-colors"
-                      placeholder="Enter your name"
-                    />
-                  </div>
-                )}
-
                 <div className="space-y-1">
                   <label className="text-[10px] orbitron font-bold text-gray-500 uppercase tracking-widest">Email Address</label>
                   <input
@@ -221,10 +209,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
               type="submit"
               disabled={loading}
               className={`w-full py-4 mt-2 font-black orbitron text-xs tracking-widest transition-all flex items-center justify-center gap-2 ${mode === 'login'
-                ? 'bg-[#00f3ff] text-black hover:bg-white shadow-[0_0_20px_#00f3ff]'
-                : mode === 'register'
-                  ? 'bg-[#ff00ff] text-black hover:bg-white shadow-[0_0_20px_#ff00ff]'
-                  : 'bg-white text-black hover:bg-[#00f3ff] shadow-[0_0_20px_white]'
+                ? 'bg-[#00f3ff] text-black hover:bg-white shadow-[0_0_20px_#00f3ff]' : 'bg-white text-black hover:bg-[#00f3ff] shadow-[0_0_20px_white]'
                 } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {loading ? (
@@ -232,7 +217,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                   <i className="fa-solid fa-circle-notch fa-spin"></i> CONNECTING...
                 </>
               ) : (
-                mode === 'login' ? 'LOGIN NOW' : (mode === 'register' ? 'REGISTER NOW' : 'VERIFY & ACCESS')
+                mode === 'login' ? 'ACCESS GATEWAY' : 'VERIFY & UNLOCK'
               )}
             </button>
             {mode === 'verify' && (
@@ -241,25 +226,10 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                 onClick={() => setMode('login')}
                 className="w-full text-[10px] orbitron text-gray-500 hover:text-[#00f3ff] transition-colors uppercase tracking-widest pt-2"
               >
-                Back to Login
+                Abort Protocol
               </button>
             )}
           </form>
-
-          {/* Guest Bypass */}
-          <div className="mt-8 pt-6 border-t border-white/5 flex flex-col items-center gap-3">
-            <div className="flex items-center gap-2 w-full">
-              <div className="h-[1px] bg-white/10 flex-1"></div>
-              <span className="text-[8px] orbitron text-gray-600 uppercase tracking-widest">Temporary Access</span>
-              <div className="h-[1px] bg-white/10 flex-1"></div>
-            </div>
-            <button
-              onClick={handleGuestLogin}
-              className="text-[10px] orbitron text-gray-500 hover:text-[#00f3ff] transition-colors uppercase tracking-[0.2em] flex items-center gap-2"
-            >
-              <i className="fa-solid fa-user-secret"></i> Continue as Guest (2 Mins)
-            </button>
-          </div>
 
           {/* Terminal Output */}
           <div className="mt-6 bg-black p-3 rounded border border-white/5 font-mono text-[8px] text-gray-500 h-20 overflow-hidden">
