@@ -153,11 +153,10 @@ app.post('/api/auth/register', async (req, res) => {
             console.error('Email Dispatch Failed:', emailErr.message);
         }
 
-        console.log(`✅ [REGISTER] Secure account created: ${email}. OTP: ${otp}`);
+        console.log(`✅ [REGISTER] Secure account created: ${email}. OTP dispatched.`);
         res.json({
             success: true,
-            needsVerification: true,
-            _hint: otp // Alpha Phase: Keeping hint active for Commander
+            needsVerification: true
         });
     } catch (error) {
         console.error('❌ Registration Error:', error.message);
@@ -183,12 +182,11 @@ app.post('/api/auth/login', async (req, res) => {
             const user = rows[0];
 
             if (!user.verified) {
-                console.log(`📡 [SECURITY] Verification Required for: ${email}. Code: ${user.verification_code}`);
+                console.log(`📡 [SECURITY] Verification Required for: ${email}`);
                 return res.status(403).json({
                     success: false,
                     error: 'IDENTITY_PENDING: Please verify your email first.',
-                    needsVerification: true,
-                    _hint: user.verification_code // Alpha Phase: Keep active for Commander
+                    needsVerification: true
                 });
             }
 
@@ -217,16 +215,6 @@ app.post('/api/auth/verify', async (req, res) => {
     try {
         const { config, email, code } = req.body || {};
         const dbConfig = validateConfig(config);
-
-        // --- COMMANDER'S ALPHA BYPASS ---
-        if (code === '777777') {
-            await queryDatabase(dbConfig, {
-                text: 'UPDATE atlas_users SET verified = TRUE, verification_code = NULL WHERE email = $1',
-                values: [email]
-            });
-            const sel = await queryDatabase(dbConfig, { text: 'SELECT * FROM atlas_users WHERE email = $1', values: [email] });
-            return res.json({ success: true, user: sel[0] });
-        }
 
         const query = {
             text: 'SELECT * FROM atlas_users WHERE email = $1 AND verification_code = $2',

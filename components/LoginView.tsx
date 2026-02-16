@@ -60,10 +60,6 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
       if (res.status === 403 && data.needsVerification) {
         addLog("PROTOCOL_HOLD: Email Verification Required.");
-        if (data._hint) {
-          console.log("🛠️ [SECURITY_PROTOCOL] Diagnostic Code:", data._hint);
-          addLog("HINT: Check browser console (F12) for diagnostic code.");
-        }
         setMode('verify');
         setError('');
         return;
@@ -73,10 +69,6 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
       if (mode === 'register' && data.needsVerification) {
         addLog("DISPATCHED: Security code sent to inbox.");
-        if (data._hint) {
-          console.log("🛠️ [SECURITY_PROTOCOL] Diagnostic Code:", data._hint);
-          addLog("HINT: Code logged in browser console (F12).");
-        }
         setMode('verify');
         return;
       }
