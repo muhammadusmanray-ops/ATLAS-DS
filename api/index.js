@@ -170,8 +170,69 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 
-// --- API ENDPOINTS CLEARED FOR GEMINI INTEGRATION ---
-// Waiting for new auth & history logic...
+// --- AUTH: LOGIN (GEMINI SMART FLOW) ---
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        const { config, email, password } = req.body || {};
+        const dbConfig = validateConfig(config);
+
+        // 1. Fetch User
+        const query = {
+            text: 'SELECT * FROM atlas_users WHERE email = $1',
+            values: [email]
+        };
+        const rows = await queryDatabase(dbConfig, query);
+
+        if (rows && rows.length > 0) {
+            const user = rows[0];
+
+            // 2. Check Verification Status
+            if (!user.verified) {
+                console.log(`📡 [SECURITY] Verification Required for: ${email}`);
+
+                // --- AUTO-RESEND OTP LOGIC ---
+                try {
+                    const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
+
+                    // Update DB with new OTP
+                    await queryDatabase(dbConfig, {
+                        text: 'UPDATE atlas_users SET verification_code = $1 WHERE email = $2',
+                        values: [newOtp, email]
+                    });
+
+                    // Send Email via Brevo
+                    await sendVerificationEmail(email, user.name, newOtp);
+
+                } catch (resendErr) {
+                    console.error("❌ Resend Failed (Non-Fatal):", resendErr.message);
+                }
+
+                return res.status(403).json({
+                    success: false,
+                    error: 'IDENTITY_PENDING: Verification code sent to your email.',
+                    needsVerification: true
+                });
+            }
+
+            // 3. COMPARE Hash
+            const isMatch = await bcrypt.compare(password, user.password);
+
+            if (isMatch) {
+                console.log(`✅ [LOGIN] Authenticated: ${email}`);
+                const { password: _, verification_code: __, ...userWithoutPassword } = user;
+                res.json({ success: true, user: userWithoutPassword });
+            } else {
+                res.status(401).json({ success: false, error: 'Invalid Credentials' });
+            }
+        } else {
+            console.warn(`⚠️ [LOGIN] Access Denied: ${email}`);
+            res.status(401).json({ success: false, error: 'Invalid Credentials' });
+        }
+    } catch (error) {
+        console.error('❌ Login Error:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
 
 app.post('/api/auth/verify', async (req, res) => {
     try {
@@ -180,12 +241,8 @@ app.post('/api/auth/verify', async (req, res) => {
 
         // --- COMMANDER'S ALPHA BYPASS ---
         if (code === '777777') {
-            await queryDatabase(dbConfig, {
-                text: 'UPDATE atlas_users SET verified = TRUE, verification_code = NULL WHERE email = $1',
-                values: [email]
-            });
-            const sel = await queryDatabase(dbConfig, { text: 'SELECT * FROM atlas_users WHERE email = $1', values: [email] });
-            return res.json({ success: true, user: sel[0] });
+            await queryDatabase(dbConfig, { text: 'UPDATE atlas_users SET verified = TRUE WHERE email = $1', values: [email] });
+            return res.json({ success: true });
         }
 
         const query = {
@@ -201,9 +258,109 @@ app.post('/api/auth/verify', async (req, res) => {
             });
             res.json({ success: true, user: rows[0] });
         } else {
-            res.status(400).json({ success: false, error: 'INVALID_CODE: Verification mismatch.' });
+            res.status(400).json({ success: false, error: 'INVALID_CODE' });
         }
     } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+
+// --- CHAT HISTORY ENDPOINTS (GEMINI ARCHITECTURE) ---
+
+// 1. GET ALL CHATS (Sidebar)
+app.get('/api/history', async (req, res) => {
+    try {
+        const { config, email } = req.query;
+        if (!email) return res.json({ success: true, history: [] });
+
+        const dbConfig = validateConfig(JSON.parse(config || '{}'));
+
+        // Ensure Table Exists (Auto-Migration)
+        await queryDatabase(dbConfig, `
+            CREATE TABLE IF NOT EXISTS atlas_chats (
+                id SERIAL PRIMARY KEY, 
+                user_email TEXT, 
+                title TEXT, 
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS atlas_messages (
+                id SERIAL PRIMARY KEY,
+                chat_id INTEGER REFERENCES atlas_chats(id),
+                role TEXT,
+                content TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        const rows = await queryDatabase(dbConfig, {
+            text: 'SELECT * FROM atlas_chats WHERE user_email = $1 ORDER BY updated_at DESC',
+            values: [email]
+        });
+
+        res.json({ success: true, history: rows });
+    } catch (error) {
+        console.error('❌ Get History Error:', error.message);
+        res.json({ success: true, history: [] });
+    }
+});
+
+// 2. GET MESSAGES FOR A CHAT
+app.get('/api/history/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { config } = req.query;
+        const dbConfig = validateConfig(JSON.parse(config || '{}'));
+
+        const rows = await queryDatabase(dbConfig, {
+            text: 'SELECT role, content FROM atlas_messages WHERE chat_id = $1 ORDER BY created_at ASC',
+            values: [id]
+        });
+
+        res.json({ success: true, messages: rows });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// 3. SAVE CHAT (New or Update)
+app.post('/api/save-chat', async (req, res) => {
+    try {
+        const { config, email, chatId, userMessage, aiMessage } = req.body;
+        const dbConfig = validateConfig(config);
+
+        let activeChatId = chatId;
+
+        // Create Chat Request if ID is missing (New Chat)
+        if (!activeChatId) {
+            const title = userMessage.substring(0, 30) + "...";
+            const chatRes = await queryDatabase(dbConfig, {
+                text: 'INSERT INTO atlas_chats (user_email, title) VALUES ($1, $2) RETURNING id',
+                values: [email, title]
+            });
+            activeChatId = chatRes[0].id;
+        }
+
+        // Save Messages
+        await queryDatabase(dbConfig, {
+            text: 'INSERT INTO atlas_messages (chat_id, role, content) VALUES ($1, $2, $3)',
+            values: [activeChatId, 'user', userMessage]
+        });
+
+        await queryDatabase(dbConfig, {
+            text: 'INSERT INTO atlas_messages (chat_id, role, content) VALUES ($1, $2, $3)',
+            values: [activeChatId, 'model', aiMessage]
+        });
+
+        // Update Timestamp
+        await queryDatabase(dbConfig, {
+            text: 'UPDATE atlas_chats SET updated_at = NOW() WHERE id = $1',
+            values: [activeChatId]
+        });
+
+        res.json({ success: true, chatId: activeChatId });
+    } catch (error) {
+        console.error('❌ Save History Error:', error.message);
         res.status(500).json({ success: false, error: error.message });
     }
 });
