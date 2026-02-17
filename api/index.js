@@ -11,6 +11,8 @@ import { queryDatabase } from './db-connector.js';
 
 dotenv.config();
 
+// FIX: Destructure Pool from pg
+const { Pool } = pg;
 const app = express();
 
 Sentry.init({
@@ -18,13 +20,10 @@ Sentry.init({
     integrations: [
         nodeProfilingIntegration(),
     ],
-    // Performance Monitoring
-    tracesSampleRate: 1.0, //  Capture 100% of the transactions
+    tracesSampleRate: 1.0,
 });
 
-// The request handler must be the first middleware on the app
 app.use(Sentry.Handlers.requestHandler());
-// TracingHandler creates a trace for every incoming request
 app.use(Sentry.Handlers.tracingHandler());
 
 app.use(express.json());
@@ -36,7 +35,7 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false },
     max: 10,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 5000,
+    connectionTimeoutMillis: 10000, // Increased timeout for serverless cold starts
 });
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
