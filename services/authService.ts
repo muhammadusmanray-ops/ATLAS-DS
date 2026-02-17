@@ -67,23 +67,23 @@ export const authService = {
             body: JSON.stringify({ email, password })
         });
 
-        // CRITICAL FOR 2026 PROTOCOL: Handle 403 as transition signal, not failure
-        if (res.status === 403) {
-            return { needsVerification: true, email };
-        }
-
         const data = await res.json();
-        if (!res.ok) {
-            throw new Error(data.error || 'Invalid credentials');
+
+        // Handle Success OR OTP Requirement (Both are 200 OK now)
+        if (res.ok) {
+            if (data.needsVerification) {
+                return { needsVerification: true, email: data.email };
+            }
+
+            // Full Login Success
+            if (data.token) {
+                localStorage.setItem('auth_token', data.token);
+                localStorage.setItem('ATLAS_TOKEN', data.token);
+            }
+            return data.user;
         }
 
-        // Save token
-        if (data.token) {
-            localStorage.setItem('auth_token', data.token);
-            localStorage.setItem('ATLAS_TOKEN', data.token); // Compat
-        }
-
-        return data.user;
+        throw new Error(data.error || 'Authentication Failed');
     },
 
     // Google Login (Send token to backend)

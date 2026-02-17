@@ -182,14 +182,20 @@ app.post('/api/auth/login', async (req, res) => {
             const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
             await pool.query('UPDATE users SET otp = $1 WHERE id = $2', [newOtp, user.id]);
             await sendEmail(user.email, "Verify Account", `<h1>New OTP: ${newOtp}</h1>`);
-            return res.status(403).json({ error: 'Account not verified. New OTP sent.' });
+
+            // AS PER CHATGPT ADVICE: Use 200 status to avoid frontend blockers
+            return res.status(200).json({
+                needsVerification: true,
+                email: user.email,
+                message: 'Account not verified. OTP sent.'
+            });
         }
 
         const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
         res.json({ user: { id: user.id, email: user.email }, token });
     } catch (err) {
         console.error("❌ [AUTH] Login Error:", err.message);
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: 'AUTHENTICATION_FAILURE' });
     }
 });
 
