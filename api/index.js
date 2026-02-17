@@ -89,17 +89,18 @@ const sendEmail = async (email, subject, htmlContent) => {
                 "content-type": "application/json"
             },
             body: JSON.stringify({
-                sender: { name: "ATLAS_INTEL", email: "sufyar28@gmail.com" }, // Using verified sender
+                sender: { name: "ATLAS_INTEL", email: "sufyar28@gmail.com" },
                 to: [{ email: email }],
                 subject: subject,
                 htmlContent: htmlContent
             })
         });
+
         if (!res.ok) {
             const errData = await res.json();
-            console.error("❌ [MAIL] Brevo Response Error:", errData);
+            console.error("❌ [MAIL_FAILURE] Brevo API Error:", JSON.stringify(errData));
         } else {
-            console.log(`✅ [MAIL] OTP sent to ${email}`);
+            console.log(`✅ [MAIL_SUCCESS] Despatched to ${email}`);
         }
     } catch (err) {
         console.error("❌ [MAIL] Send Failure:", err.message);
