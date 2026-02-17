@@ -332,7 +332,15 @@ app.post('/api/db/query', async (req, res) => {
     }
 });
 
-// The error handler must be before any other error middleware and after all controllers
-app.use(Sentry.Handlers.errorHandler());
+// Final Global Error Handler (Ensures JSON instead of HTML)
+app.use((err, req, res, next) => {
+    console.error("🏁 [GLOBAL_CRASH]:", err.stack);
+    Sentry.captureException(err);
+    res.status(500).json({
+        error: "INTERNAL_SERVER_DISRUPTION",
+        message: err.message,
+        path: req.path
+    });
+});
 
 export default app;
