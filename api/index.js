@@ -7,7 +7,6 @@ import dotenv from 'dotenv';
 import { fetch } from 'undici';
 import { queryDatabase } from './db-connector.js';
 
-// Load env variables
 dotenv.config();
 
 const { Pool } = pg;
@@ -19,17 +18,21 @@ app.use(cors());
 // --- Database Connection ---
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL || process.env.VITE_DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
+    ssl: { rejectUnauthorized: false },
+    max: 10,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
 });
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
-// --- Database Initialization ---
-const initDB = async () => {
+// --- Serverless Safe Init ---
+let dbInitialized = false;
+const ensureDB = async () => {
+    if (dbInitialized) return;
     try {
         console.log("🛠️ [DB] Synchronizing Global Schema...");
 
-        // 1. Create Tables
         await pool.query(`
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -55,7 +58,7 @@ const initDB = async () => {
             );
         `);
 
-        // 2. Patch Existing Tables (Safety Check for already existing tables)
+        // Check for missing columns in existing deployments
         const checkCols = await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'users'");
         const columns = checkCols.rows.map(r => r.column_name);
 
@@ -63,17 +66,18 @@ const initDB = async () => {
         if (!columns.includes('verified')) await pool.query('ALTER TABLE users ADD COLUMN verified BOOLEAN DEFAULT FALSE');
         if (!columns.includes('provider')) await pool.query('ALTER TABLE users ADD COLUMN provider TEXT DEFAULT \'local\'');
 
+        dbInitialized = true;
         console.log("✅ [DB] Global Schema Synchronized");
     } catch (err) {
         console.error("❌ [DB] Init Failed:", err.message);
+        throw err;
     }
 };
-initDB();
 
 // --- Brevo Email Helper ---
 const sendEmail = async (email, subject, htmlContent) => {
     if (!process.env.BREVO_API_KEY) {
-        console.warn("⚠️ [MAIL] BREVO_API_KEY missing. Email will NOT be sent.");
+        console.warn("⚠️ [MAIL] BREVO_API_KEY missing.");
         return;
     }
     try {
@@ -85,7 +89,7 @@ const sendEmail = async (email, subject, htmlContent) => {
                 "content-type": "application/json"
             },
             body: JSON.stringify({
-                sender: { name: "ATLAS_INTEL", email: "support@atlas-ds.com" },
+                sender: { name: "ATLAS_INTEL", email: "sufyar28@gmail.com" }, // Using verified sender
                 to: [{ email: email }],
                 subject: subject,
                 htmlContent: htmlContent
@@ -115,6 +119,20 @@ const authenticate = (req, res, next) => {
     }
 };
 
+// --- API Router Middleware to ensure DB ---
+app.use(async (req, res, next) => {
+    if (req.path.startsWith('/api/')) {
+        try {
+            await ensureDB();
+            next();
+        } catch (err) {
+            res.status(500).json({ error: 'Database Initialization Failed' });
+        }
+    } else {
+        next();
+    }
+});
+
 // --- 1. AUTH ROUTES ---
 
 app.post('/api/auth/check-email', async (req, res) => {
@@ -124,7 +142,7 @@ app.post('/api/auth/check-email', async (req, res) => {
         res.json({ exists: result.rows.length > 0 });
     } catch (err) {
         console.error("❌ [AUTH] Check Email Error:", err.message);
-        res.status(500).json({ error: 'DB Error' });
+        res.status(500).json({ error: err.message });
     }
 });
 
@@ -265,12 +283,16 @@ app.post('/api/save-chat', authenticate, async (req, res) => {
 });
 
 app.get('/api/history/:id', authenticate, async (req, res) => {
-    const { id } = req.params;
-    const result = await pool.query(
-        'SELECT id, role, content as text FROM messages WHERE chat_id = $1 ORDER BY created_at ASC',
-        [id]
-    );
-    res.json(result.rows);
+    try {
+        const { id } = req.params;
+        const result = await pool.query(
+            'SELECT id, role, content as text FROM messages WHERE chat_id = $1 ORDER BY created_at ASC',
+            [id]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch messages' });
+    }
 });
 
 app.get('/api/auth/me', authenticate, (req, res) => {
