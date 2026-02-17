@@ -1,10 +1,5 @@
 import { User } from '../types';
 
-/**
- * Real Auth Service
- * Connects to the Vercel Backend API (/api/auth)
- */
-
 const API_URL = '/api/auth';
 
 export const authService = {
@@ -29,55 +24,21 @@ export const authService = {
         }
     },
 
-    // Check if an email is already registered
-    checkUserExists: async (email: string): Promise<boolean> => {
-        const res = await fetch(`${API_URL}/check-email`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
-        });
-
-        if (!res.ok) throw new Error('Network error');
-        const data = await res.json();
-        return data.exists;
-    },
-
     // Register a new user
     register: async (email: string, password: string): Promise<User> => {
-        try {
-            const res = await fetch(`${API_URL}/register`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            });
+        const res = await fetch(`${API_URL}/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
 
-            // Defensive parsing: get raw text first to debug non-JSON responses
-            const rawText = await res.text();
-            console.log('[AUTH_DEBUG] Register response status:', res.status);
-            console.log('[AUTH_DEBUG] Register response preview:', rawText.substring(0, 200));
-
-            let data;
-            try {
-                data = JSON.parse(rawText);
-            } catch (parseError) {
-                console.error('[AUTH_ERROR] Backend returned non-JSON response:', rawText);
-                throw new Error(`Server error: ${rawText.substring(0, 100)}...`);
-            }
-
-            if (!res.ok) throw new Error(data.error || 'Registration failed');
-
-            // Save token (if returned)
-            if (data.token) localStorage.setItem('auth_token', data.token);
-
-            return data.user;
-        } catch (error: any) {
-            console.error('[AUTH_CRITICAL] Registration failed:', error.message);
-            throw error;
-        }
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Registration failed');
+        return data.user;
     },
 
     // Login with email and password
-    login: async (email: string, password: string): Promise<User | any> => {
+    login: async (email: string, password: string): Promise<User> => {
         const res = await fetch(`${API_URL}/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -85,63 +46,13 @@ export const authService = {
         });
 
         const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Login failed');
 
-        // Handle Success OR OTP Requirement (Both are 200 OK now)
-        if (res.ok) {
-            if (data.needsVerification) {
-                return { needsVerification: true, email: data.email };
-            }
-
-            // Full Login Success
-            if (data.token) {
-                localStorage.setItem('auth_token', data.token);
-                localStorage.setItem('ATLAS_TOKEN', data.token);
-            }
-            return data.user;
-        }
-
-        throw new Error(data.error || 'Authentication Failed');
-    },
-
-    // Google Login (Send token to backend)
-    googleLogin: async (credential: string): Promise<User> => {
-        const res = await fetch(`${API_URL}/google`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: credential })
-        });
-
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Google login failed');
-
-        // Save token
-        if (data.token) {
-            localStorage.setItem('auth_token', data.token);
-            localStorage.setItem('ATLAS_TOKEN', data.token); // Compat
-        }
+        if (data.token) localStorage.setItem('auth_token', data.token);
         return data.user;
     },
 
-    // Verify OTP
-    verifyOtp: async (email: string, code: string): Promise<User> => {
-        const res = await fetch(`${API_URL}/verify`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, code })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Verification failed');
-        if (data.token) {
-            localStorage.setItem('auth_token', data.token);
-            localStorage.setItem('ATLAS_TOKEN', data.token); // Compat
-        }
-        return data.user;
-    },
-
-    // Logout
     logout: () => {
         localStorage.removeItem('auth_token');
-        localStorage.removeItem('ATLAS_TOKEN');
-        localStorage.removeItem('ATLAS_USER_SESSION');
     }
 };
