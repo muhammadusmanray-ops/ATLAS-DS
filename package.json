@@ -25,6 +25,7 @@
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.424.0",
+    "mongodb": "^7.1.0",
     "mysql2": "^3.17.1",
     "nodemailer": "^8.0.1",
     "pg": "^8.18.0",
