@@ -191,16 +191,27 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
           />
           {error && <p className="text-red-500 text-[9px] orbitron animate-pulse uppercase">⚠️ {error}</p>}
           <Button type="submit" isLoading={isLoading} className="w-full orbitron font-bold">AUTHENTICATE</Button>
+
+          <div className="mt-8 pt-6 border-t border-white/5 text-center">
+            <p className="text-[10px] text-gray-500 orbitron uppercase mb-2">New to the Sector?</p>
+            <button
+              type="button"
+              onClick={() => setStep(AuthState.PASSWORD_SIGNUP)}
+              className="w-full py-2 border border-emerald-500/30 text-emerald-500 text-[10px] orbitron font-bold hover:bg-emerald-500/10 transition-all rounded"
+            >
+              ENLIST NEW COMMAND
+            </button>
+          </div>
+        </form>
+
+        <div className="mt-4 text-center">
           <button
             type="button"
             onClick={() => { throw new Error("ATLAS_SENTRY_TEST_SUCCESSFUL"); }}
-            className="w-full opacity-20 hover:opacity-100 transition-opacity text-[8px] text-red-500 orbitron mt-4"
+            className="opacity-10 hover:opacity-50 transition-opacity text-[7px] text-red-500 orbitron"
           >
-            [ DISRUPT_SIGNAL_FOR_TEST ]
+            [ SYNC_DIAGNOSTIC_SIGNAL ]
           </button>
-        </form>
-        <div className="mt-8 pt-6 border-t border-white/5 text-center space-y-4">
-          <p className="text-[10px] text-gray-500 orbitron uppercase">Sector unauthorized? <button onClick={() => setStep(AuthState.PASSWORD_SIGNUP)} className="text-emerald-500 hover:underline ml-1">Enlist New Command</button></p>
         </div>
       </AuthLayout>
     );
@@ -210,14 +221,14 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     return (
       <AuthLayout>
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-white orbitron tracking-widest uppercase">Enlist Commander</h1>
-          <p className="text-slate-400 text-[10px] orbitron opacity-50 uppercase mt-2">Create new identity for <span className="text-emerald-500">{email || 'SECTOR'}</span></p>
+          <h1 className="text-2xl font-bold text-white orbitron tracking-widest uppercase text-emerald-500">New Enlistment</h1>
+          <p className="text-slate-400 text-[10px] orbitron opacity-50 uppercase mt-2">Create neural signature for {email || 'SECTOR'}</p>
         </div>
         <form onSubmit={handleSignupSubmit} className="space-y-4">
           {!email && (
             <Input
               type="email"
-              placeholder="YOUR_NEW_EMAIL@SECTOR.COM"
+              placeholder="NEW_IDENTITY_EMAIL@SECTOR.COM"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               icon={<i className="fa-solid fa-envelope"></i>}
@@ -225,17 +236,25 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
           )}
           <Input
             type="password"
-            placeholder="CREATE_ACCESS_PASSWORD (8+ chars)"
+            placeholder="ACCESS_PASSWORD (MIN 8 CHARS)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             icon={<i className="fa-solid fa-lock text-emerald-500"></i>}
           />
           {error && <p className="text-red-500 text-[9px] orbitron animate-pulse uppercase">⚠️ {error}</p>}
-          <Button type="submit" isLoading={isLoading} className="w-full orbitron font-bold shadow-lg shadow-emerald-500/20">CONFIRM ENLISTMENT</Button>
+          <Button type="submit" isLoading={isLoading} className="w-full orbitron font-bold shadow-lg shadow-emerald-500/20">CONFIRM SIGNATURE</Button>
+
+          <div className="mt-8 pt-6 border-t border-white/5 text-center">
+            <p className="text-[10px] text-gray-500 orbitron uppercase mb-2">Already have an ID?</p>
+            <button
+              type="button"
+              onClick={() => setStep(AuthState.WELCOME)}
+              className="w-full py-2 border border-blue-500/30 text-blue-400 text-[10px] orbitron font-bold hover:bg-blue-500/10 transition-all rounded"
+            >
+              RE-AUTHENTICATE COMMANDER
+            </button>
+          </div>
         </form>
-        <div className="mt-8 pt-6 border-t border-white/5 text-center space-y-4">
-          <p className="text-[10px] text-gray-500 orbitron uppercase">Already Enlisted? <button onClick={() => setStep(AuthState.WELCOME)} className="text-emerald-500 hover:underline ml-1">Re-Authenticate</button></p>
-        </div>
       </AuthLayout>
     );
   }
