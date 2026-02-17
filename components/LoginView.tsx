@@ -203,16 +203,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
             </button>
           </div>
         </form>
-
-        <div className="mt-4 text-center">
-          <button
-            type="button"
-            onClick={() => { throw new Error("ATLAS_SENTRY_TEST_SUCCESSFUL"); }}
-            className="opacity-10 hover:opacity-50 transition-opacity text-[7px] text-red-500 orbitron"
-          >
-            [ SYNC_DIAGNOSTIC_SIGNAL ]
-          </button>
-        </div>
       </AuthLayout>
     );
   }
