@@ -89,16 +89,27 @@ const App: React.FC = () => {
     const initSystem = async () => {
       try {
         await db.init();
-        const sessionUser = localStorage.getItem('ATLAS_USER_SESSION');
-        if (sessionUser) {
-          const parsedUser = JSON.parse(sessionUser);
-          setUser(parsedUser);
-          setIsAuthenticated(true);
+        const token = localStorage.getItem('ATLAS_TOKEN');
+        if (token) {
+          // Validate with Backend
+          const res = await fetch('/api/auth/me', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+
+          if (res.ok) {
+            const userData = await res.json();
+            setUser(userData);
+            setIsAuthenticated(true);
+          } else {
+            // Token invalid or expired
+            localStorage.removeItem('ATLAS_TOKEN');
+            setIsAuthenticated(false);
+          }
         }
       } catch (e) {
         console.error("DIAGNOSTIC_INTERRUPT:", e);
       } finally {
-        setIsLoading(false);
+        setTimeout(() => setIsLoading(false), 1000); // Small delay for aesthetic
       }
     };
     initSystem();

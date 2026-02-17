@@ -4,7 +4,8 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { fetch } from 'undici'; // Use native fetch if Node 18+, else undici or node-fetch but implicit global fetch is better if available. Node 18+ has global fetch.
+import { fetch } from 'undici';
+import { queryDatabase } from './db-connector.js';
 
 // Load env variables
 dotenv.config();
@@ -17,7 +18,7 @@ app.use(cors());
 
 // --- Database Connection ---
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: process.env.DATABASE_URL || process.env.VITE_DATABASE_URL,
     ssl: { rejectUnauthorized: false }
 });
 
@@ -26,6 +27,9 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 // --- Database Initialization ---
 const initDB = async () => {
     try {
+        console.log("🛠️ [DB] Synchronizing Global Schema...");
+
+        // 1. Create Tables
         await pool.query(`
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -50,6 +54,15 @@ const initDB = async () => {
                 created_at TIMESTAMP DEFAULT NOW()
             );
         `);
+
+        // 2. Patch Existing Tables (Safety Check for already existing tables)
+        const checkCols = await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'users'");
+        const columns = checkCols.rows.map(r => r.column_name);
+
+        if (!columns.includes('otp')) await pool.query('ALTER TABLE users ADD COLUMN otp TEXT');
+        if (!columns.includes('verified')) await pool.query('ALTER TABLE users ADD COLUMN verified BOOLEAN DEFAULT FALSE');
+        if (!columns.includes('provider')) await pool.query('ALTER TABLE users ADD COLUMN provider TEXT DEFAULT \'local\'');
+
         console.log("✅ [DB] Global Schema Synchronized");
     } catch (err) {
         console.error("❌ [DB] Init Failed:", err.message);
@@ -59,10 +72,12 @@ initDB();
 
 // --- Brevo Email Helper ---
 const sendEmail = async (email, subject, htmlContent) => {
-    if (!process.env.BREVO_API_KEY) return;
+    if (!process.env.BREVO_API_KEY) {
+        console.warn("⚠️ [MAIL] BREVO_API_KEY missing. Email will NOT be sent.");
+        return;
+    }
     try {
-        // Node 18+ has native fetch. If on Vercel Node 18+, this works.
-        await fetch("https://api.brevo.com/v3/smtp/email", {
+        const res = await fetch("https://api.brevo.com/v3/smtp/email", {
             method: "POST",
             headers: {
                 "accept": "application/json",
@@ -70,21 +85,27 @@ const sendEmail = async (email, subject, htmlContent) => {
                 "content-type": "application/json"
             },
             body: JSON.stringify({
-                sender: { name: "Gemini App", email: "sufyar28@gmail.com" }, // Your sender
+                sender: { name: "ATLAS_INTEL", email: "support@atlas-ds.com" },
                 to: [{ email: email }],
                 subject: subject,
                 htmlContent: htmlContent
             })
         });
+        if (!res.ok) {
+            const errData = await res.json();
+            console.error("❌ [MAIL] Brevo Response Error:", errData);
+        } else {
+            console.log(`✅ [MAIL] OTP sent to ${email}`);
+        }
     } catch (err) {
-        console.error("Brevo Error:", err);
+        console.error("❌ [MAIL] Send Failure:", err.message);
     }
 };
 
 // --- Middleware ---
 const authenticate = (req, res, next) => {
     const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+    if (!token) return res.status(401).json({ error: 'Unauthorized: Missing Token' });
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
         req.user = decoded;
@@ -96,16 +117,17 @@ const authenticate = (req, res, next) => {
 
 // --- 1. AUTH ROUTES ---
 
-// Check Email
 app.post('/api/auth/check-email', async (req, res) => {
     try {
         const { email } = req.body;
         const result = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase().trim()]);
         res.json({ exists: result.rows.length > 0 });
-    } catch (err) { res.status(500).json({ error: 'DB Error' }); }
+    } catch (err) {
+        console.error("❌ [AUTH] Check Email Error:", err.message);
+        res.status(500).json({ error: 'DB Error' });
+    }
 });
 
-// Register
 app.post('/api/auth/register', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -113,22 +135,19 @@ app.post('/api/auth/register', async (req, res) => {
         const hash = await bcrypt.hash(password, 10);
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-        // Insert User
         await pool.query(
             'INSERT INTO users (email, password_hash, otp, verified) VALUES ($1, $2, $3, FALSE)',
             [safeEmail, hash, otp]
         );
 
-        // Send OTP
-        await sendEmail(safeEmail, "Your OTP Code", `<h1>${otp}</h1>`);
-
+        await sendEmail(safeEmail, "Your ATLAS verification code", `<h1>Verification Code: ${otp}</h1>`);
         res.json({ success: true, message: "OTP sent" });
     } catch (err) {
-        res.status(500).json({ error: 'Registration failed' });
+        console.error("❌ [AUTH] Register Error:", err.message);
+        res.status(500).json({ error: 'Registration failed: ' + err.message });
     }
 });
 
-// *** CRITICAL: Login with Unverified User Protection ***
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -137,58 +156,50 @@ app.post('/api/auth/login', async (req, res) => {
         const result = await pool.query('SELECT * FROM users WHERE email = $1', [safeEmail]);
         const user = result.rows[0];
 
-        // 1. Check Credentials
         if (!user || !(await bcrypt.compare(password, user.password_hash))) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        // 2. Check Verification Status
         if (!user.verified) {
-            // Generate NEW OTP to prevent stale codes
             const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
-
-            // Update DB
             await pool.query('UPDATE users SET otp = $1 WHERE id = $2', [newOtp, user.id]);
-
-            // Send Email
-            await sendEmail(user.email, "Verify Account", `<h1>Your New OTP: ${newOtp}</h1>`);
-
-            // Return 403 Forbidden to trigger OTP screen on frontend
+            await sendEmail(user.email, "Verify Account", `<h1>New OTP: ${newOtp}</h1>`);
             return res.status(403).json({ error: 'Account not verified. New OTP sent.' });
         }
 
-        // 3. Issue Token if Verified
         const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
         res.json({ user: { id: user.id, email: user.email }, token });
-
     } catch (err) {
+        console.error("❌ [AUTH] Login Error:", err.message);
         res.status(500).json({ error: err.message });
     }
 });
 
-// Google Auth (Simplified)
 app.post('/api/auth/google', async (req, res) => {
-    const { token } = req.body;
-    const googleRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${token}`);
-    if (!googleRes.ok) return res.status(401).json({ error: 'Invalid Token' });
-    const gData = await googleRes.json();
+    try {
+        const { token } = req.body;
+        const googleRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${token}`);
+        if (!googleRes.ok) return res.status(401).json({ error: 'Invalid Token' });
+        const gData = await googleRes.json();
 
-    let userRes = await pool.query('SELECT * FROM users WHERE email = $1', [gData.email]);
-    let user = userRes.rows[0];
+        let userRes = await pool.query('SELECT * FROM users WHERE email = $1', [gData.email]);
+        let user = userRes.rows[0];
 
-    if (!user) {
-        const insert = await pool.query(
-            'INSERT INTO users (email, provider, verified) VALUES ($1, $2, TRUE) RETURNING id, email',
-            [gData.email, 'google']
-        );
-        user = insert.rows[0];
+        if (!user) {
+            const insert = await pool.query(
+                'INSERT INTO users (email, provider, verified) VALUES ($1, $2, TRUE) RETURNING id, email',
+                [gData.email, 'google']
+            );
+            user = insert.rows[0];
+        }
+
+        const appToken = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
+        res.json({ user, token: appToken });
+    } catch (err) {
+        res.status(500).json({ error: 'Google auth failed' });
     }
-
-    const appToken = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
-    res.json({ user, token: appToken });
 });
 
-// Verify OTP
 app.post('/api/auth/verify', async (req, res) => {
     try {
         const { email, code } = req.body;
@@ -199,19 +210,17 @@ app.post('/api/auth/verify', async (req, res) => {
             return res.status(401).json({ error: 'Invalid verification code' });
         }
 
-        // Update User as Verified
         await pool.query('UPDATE users SET verified = TRUE, otp = NULL WHERE id = $1', [user.id]);
-
         const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
         res.json({ user: { id: user.id, email: user.email }, token });
     } catch (err) {
+        console.error("❌ [AUTH] Verify Error:", err.message);
         res.status(500).json({ error: 'Verification failed' });
     }
 });
 
 // --- 2. CHAT HISTORY ROUTES ---
 
-// GET /api/history
 app.get('/api/history', authenticate, async (req, res) => {
     try {
         const result = await pool.query(
@@ -224,13 +233,11 @@ app.get('/api/history', authenticate, async (req, res) => {
     }
 });
 
-// POST /api/save-chat
 app.post('/api/save-chat', authenticate, async (req, res) => {
     try {
         const { chatId, userMessage, aiMessage } = req.body;
         let activeChatId = chatId;
 
-        // Create new chat session if needed
         if (!activeChatId) {
             const title = userMessage.substring(0, 30) + "...";
             const chatRes = await pool.query(
@@ -240,28 +247,23 @@ app.post('/api/save-chat', authenticate, async (req, res) => {
             activeChatId = chatRes.rows[0].id;
         }
 
-        // Insert User Message
         await pool.query(
             'INSERT INTO messages (chat_id, role, content) VALUES ($1, $2, $3)',
             [activeChatId, 'user', userMessage]
         );
 
-        // Insert AI Message
         await pool.query(
             'INSERT INTO messages (chat_id, role, content) VALUES ($1, $2, $3)',
             [activeChatId, 'model', aiMessage]
         );
 
-        // Update Chat Timestamp
         await pool.query('UPDATE chats SET updated_at = NOW() WHERE id = $1', [activeChatId]);
-
         res.json({ success: true, chatId: activeChatId });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// Get Messages for a specific chat
 app.get('/api/history/:id', authenticate, async (req, res) => {
     const { id } = req.params;
     const result = await pool.query(
@@ -273,6 +275,18 @@ app.get('/api/history/:id', authenticate, async (req, res) => {
 
 app.get('/api/auth/me', authenticate, (req, res) => {
     res.json({ id: req.user.id, email: req.user.email });
+});
+
+// --- 3. DATABASE QUERY ROUTE (NOTEBOOK) ---
+app.post('/api/db/query', async (req, res) => {
+    try {
+        const { config, query } = req.body;
+        const rows = await queryDatabase(config, query);
+        res.json({ success: true, rows });
+    } catch (err) {
+        console.error("❌ [DB_QUERY] Error:", err.message);
+        res.status(500).json({ success: false, error: err.message });
+    }
 });
 
 export default app;
