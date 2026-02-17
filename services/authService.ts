@@ -53,7 +53,7 @@ export const authService = {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Registration failed');
 
-        // Save token
+        // Save token (if returned)
         if (data.token) localStorage.setItem('auth_token', data.token);
 
         return data.user;
@@ -67,12 +67,15 @@ export const authService = {
             body: JSON.stringify({ email, password })
         });
 
-        const data = await res.json();
+        // CRITICAL FOR 2026 PROTOCOL: Handle 403 as transition signal, not failure
         if (res.status === 403) {
-            // Return structured data for OTP flow
             return { needsVerification: true, email };
         }
-        if (!res.ok) throw new Error(data.error || 'Invalid credentials');
+
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.error || 'Invalid credentials');
+        }
 
         // Save token
         if (data.token) {
