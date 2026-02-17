@@ -1,619 +1,216 @@
-
-// Vercel Serverless Function Wrapper for Kaggle API Proxy
-import express from 'express';
-import cors from 'cors';
-import axios from 'axios';
-import bcrypt from 'bcryptjs';
-import { queryDatabase } from './db-connector.js';
-import dotenv from 'dotenv';
-import SibApiV3Sdk from '@sendinblue/client';
-
-// Load env variables
-dotenv.config();
+const express = require('express');
+const { Pool } = require('pg');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const cors = require('cors');
+require('dotenv').config();
 
 const app = express();
-
-// --- MIDDLEWARE ---
-// Ensure body parsing and CORS are set up BEFORE any routes
-app.use(cors({
-    origin: '*',
-    methods: ['GET', 'POST', 'OPTIONS'],
-}));
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(cors());
 
-// Monitor Requests
-app.use((req, res, next) => {
-    console.log(`📡 [${new Date().toLocaleTimeString()}] ${req.method} ${req.url}`);
-    next();
+// --- Database Connection ---
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
 });
 
-// --- RESEND EMAIL PROTOCOL (Modern API) ---
-import { Resend } from 'resend';
-const resend = new Resend(process.env.RESEND_API_KEY);
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
-const KAGGLE_USERNAME = process.env.KAGGLE_USERNAME;
-const KAGGLE_API_KEY = process.env.KAGGLE_API_KEY;
-
-// --- AUTHENTICATION & USERS (NEON PERSISTENCE) ---
-
-// Helper: Send Brevo Email
-const sendVerificationEmail = async (email, name, otp) => {
-    if (!process.env.BREVO_API_KEY) {
-        console.warn("⚠️ [BREVO] API Key Missing - Email skipped");
-        return;
-    }
-
+// --- Brevo Email Helper ---
+const sendEmail = async (email, subject, htmlContent) => {
+    if (!process.env.BREVO_API_KEY) return;
     try {
-        const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-        apiInstance.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
-
-        const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-        sendSmtpEmail.subject = "🔐 ATLAS-X: Verification Code";
-        sendSmtpEmail.sender = { "name": "Atlas Intelligence", "email": "sufyar28@gmail.com" };
-        sendSmtpEmail.to = [{ "email": email, "name": name }];
-        sendSmtpEmail.htmlContent = `
-            <div style="font-family: 'Courier New', monospace; background: #0a0a0a; color: #00f3ff; padding: 40px; border: 2px solid #00f3ff; max-width: 600px; margin: auto;">
-                <h1 style="text-align: center; border-bottom: 1px solid #00f3ff; padding-bottom: 20px;">IDENTITY_VERIFICATION</h1>
-                <p style="font-size: 16px;">Commander <strong>${name}</strong>,</p>
-                <p>Use this secure code to access the gateway:</p>
-                <div style="background: #111; padding: 30px; font-size: 40px; letter-spacing: 15px; text-align: center; border: 1px dashed #00f3ff; margin: 30px 0; color: #fff; text-shadow: 0 0 10px #00f3ff;">
-                    ${otp}
-                </div>
-                <p style="color: #ff00ff; font-size: 12px; text-align: center;">[ WARNING: This code expires in 10 minutes ]</p>
-                <div style="margin-top: 40px; font-size: 10px; color: #444; text-align: center;">
-                    SECURE GATEWAY v8.3 | AUTO-DISPATCH | BREVO RELAY
-                </div>
-            </div>
-        `;
-
-        await apiInstance.sendTransacEmail(sendSmtpEmail);
-        console.log(`📧 [BREVO] Verification email sent to: ${email}`);
-    } catch (error) {
-        console.error("❌ [BREVO] Send Failed:", error.message);
-        // We don't throw here to prevent crashing the whole auth flow if email fails
+        await fetch("https://api.brevo.com/v3/smtp/email", {
+            method: "POST",
+            headers: {
+                "accept": "application/json",
+                "api-key": process.env.BREVO_API_KEY,
+                "content-type": "application/json"
+            },
+            body: JSON.stringify({
+                sender: { name: "Gemini App", email: "sufyar28@gmail.com" }, // Your sender
+                to: [{ email: email }],
+                subject: subject,
+                htmlContent: htmlContent
+            })
+        });
+    } catch (err) {
+        console.error("Brevo Error:", err);
     }
 };
 
-// Helper to validate DB config
-const validateConfig = (config) => {
-    // 🛡️ SECURITY FALLBACK: Try multiple environment variable names
-    const envUrl = process.env.VITE_DATABASE_URL || process.env.DATABASE_URL || process.env.POSTGRES_URL;
-
-    if (!config && envUrl) {
-        try {
-            const matches = envUrl.match(/postgresql:\/\/([^:]+):([^@]+)@([^:/]+)(?::(\d+))?\/([^?]+)/);
-            if (matches) {
-                return {
-                    type: 'postgres',
-                    user: matches[1],
-                    password: matches[2],
-                    host: matches[3],
-                    port: matches[4] || '5432',
-                    database: matches[5]
-                };
-            }
-        } catch (e) {
-            console.error("Critical: Database URL Parsing Failed:", e.message);
-        }
+// --- Middleware ---
+const authenticate = (req, res, next) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        req.user = decoded;
+        next();
+    } catch (err) {
+        res.status(401).json({ error: 'Invalid token' });
     }
-
-    if (!config) {
-        const errorMsg = envUrl
-            ? "DATABASE_INIT_FAILED: Config missing and ENV_URL parsing failed."
-            : "DATABASE_NOT_CONFIGURED: No connection parameters or Vercel Secrets found.";
-        throw new Error(errorMsg);
-    }
-    return config;
 };
 
-// Setup Users Table
-app.post('/api/auth/init', async (req, res) => {
+// --- 1. AUTH ROUTES ---
+
+// Check Email
+app.post('/api/auth/check-email', async (req, res) => {
     try {
-        const { config } = req.body || {};
-        const dbConfig = validateConfig(config);
-        const createTable = `
-            CREATE TABLE IF NOT EXISTS atlas_users (
-                id TEXT PRIMARY KEY,
-                name TEXT,
-                email TEXT UNIQUE,
-                password TEXT,
-                avatar TEXT,
-                rank TEXT DEFAULT 'Lead Scientist',
-                verified BOOLEAN DEFAULT FALSE,
-                verification_code TEXT
-            );
-        `;
-        await queryDatabase(dbConfig, createTable);
-        res.json({ success: true, message: 'Identity Vault Initialized' });
-    } catch (error) {
-        console.error('❌ Auth Init Error:', error.message);
-        res.status(500).json({ success: false, error: error.message });
-    }
+        const { email } = req.body;
+        const result = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase().trim()]);
+        res.json({ exists: result.rows.length > 0 });
+    } catch (err) { res.status(500).json({ error: 'DB Error' }); }
 });
 
+// Register
 app.post('/api/auth/register', async (req, res) => {
     try {
-        const { config, name, email, password, avatar } = req.body || {};
-        const id = req.body.id || `usr_${Date.now()}`;
-        const dbConfig = validateConfig(config);
+        const { email, password } = req.body;
+        const safeEmail = email.toLowerCase().trim();
+        const hash = await bcrypt.hash(password, 10);
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-        // 🛠️ SCHEMA EVOLUTION: Ensure existing table matches new Security Protocol
-        await queryDatabase(dbConfig, `
-            CREATE TABLE IF NOT EXISTS atlas_users (
-                id TEXT PRIMARY KEY, 
-                name TEXT, 
-                email TEXT UNIQUE, 
-                password TEXT, 
-                avatar TEXT, 
-                rank TEXT DEFAULT 'Lead Scientist',
-                verified BOOLEAN DEFAULT FALSE,
-                verification_code TEXT
-            );
-        `);
+        // Insert User
+        await pool.query(
+            'INSERT INTO users (email, password_hash, otp, verified) VALUES ($1, $2, $3, FALSE)',
+            [safeEmail, hash, otp]
+        );
 
-        // Force-add columns if table existed previously without them
-        try {
-            await queryDatabase(dbConfig, `ALTER TABLE atlas_users ADD COLUMN IF NOT EXISTS verified BOOLEAN DEFAULT FALSE;`);
-            const dbConfig = validateConfig(config);
+        // Send OTP
+        await sendEmail(safeEmail, "Your OTP Code", `<h1>${otp}</h1>`);
 
-            // Auto-init for fallback
-            await queryDatabase(dbConfig, `CREATE TABLE IF NOT EXISTS atlas_users (id TEXT PRIMARY KEY, name TEXT, email TEXT UNIQUE, password TEXT, avatar TEXT, rank TEXT DEFAULT 'Lead Scientist', verified BOOLEAN DEFAULT FALSE, verification_code TEXT);`);
-
-            // Check if user exists
-            const checkUser = await queryDatabase(dbConfig, { text: 'SELECT * FROM atlas_users WHERE email = $1', values: [email] });
-
-            const otp = Math.floor(100000 + Math.random() * 900000).toString();
-            const hashedPassword = await bcrypt.hash(password, 10);
-            const id = Math.random().toString(36).substr(2, 9);
-
-            if (checkUser && checkUser.length > 0) {
-                const existingUser = checkUser[0];
-                if (existingUser.verified) {
-                    return res.status(400).json({ success: false, error: 'IDENTITY_EXISTS: User already verified.' });
-                }
-                // Update Existing Unverified
-                await queryDatabase(dbConfig, {
-                    text: 'UPDATE atlas_users SET verification_code = $1, password = $2 WHERE email = $3',
-                    values: [otp, hashedPassword, email]
-                });
-                console.log(`🔄 [REGISTER] Refreshed OTP for: ${email}`);
-            } else {
-                // New User
-                await queryDatabase(dbConfig, {
-                    text: 'INSERT INTO atlas_users (id, name, email, password, avatar, verification_code, verified) VALUES ($1, $2, $3, $4, $5, $6, FALSE)',
-                    values: [id, name, email, hashedPassword, avatar, otp]
-                });
-                console.log(`✅ [REGISTER] Created user: ${email}`);
-            }
-
-            // SEND EMAIL
-            await sendVerificationEmail(email, name, otp);
-
-            res.json({
-                success: true,
-                needsVerification: true,
-                _hint: otp // Diagnostic
-            });
-
-        } catch (error) {
-            console.error('❌ Registration Error (Inner Try):', error.message);
-            res.status(500).json({ success: false, error: error.message });
-        }
-
-    } catch (error) {
-        console.error('❌ Registration Error:', error.message);
-        res.status(500).json({ success: false, error: error.message });
+        res.json({ success: true, message: "OTP sent" });
+    } catch (err) {
+        res.status(500).json({ error: 'Registration failed' });
     }
 });
 
-
-// --- AUTH: LOGIN (GEMINI SMART FLOW) ---
+// *** CRITICAL: Login with Unverified User Protection ***
 app.post('/api/auth/login', async (req, res) => {
     try {
-        const { config, email, password } = req.body || {};
-        const dbConfig = validateConfig(config);
+        const { email, password } = req.body;
+        const safeEmail = email.toLowerCase().trim();
 
-        // 1. Fetch User
-        const query = {
-            text: 'SELECT * FROM atlas_users WHERE email = $1',
-            values: [email]
-        };
-        const rows = await queryDatabase(dbConfig, query);
+        const result = await pool.query('SELECT * FROM users WHERE email = $1', [safeEmail]);
+        const user = result.rows[0];
 
-        if (rows && rows.length > 0) {
-            const user = rows[0];
-
-            // 2. Check Verification Status
-            if (!user.verified) {
-                console.log(`📡 [SECURITY] Verification Required for: ${email}`);
-
-                // --- AUTO-RESEND OTP LOGIC ---
-                try {
-                    const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
-
-                    // Update DB with new OTP
-                    await queryDatabase(dbConfig, {
-                        text: 'UPDATE atlas_users SET verification_code = $1 WHERE email = $2',
-                        values: [newOtp, email]
-                    });
-
-                    // Send Email via Brevo
-                    await sendVerificationEmail(email, user.name, newOtp);
-
-                } catch (resendErr) {
-                    console.error("❌ Resend Failed (Non-Fatal):", resendErr.message);
-                }
-
-                return res.status(403).json({
-                    success: false,
-                    error: 'IDENTITY_PENDING: Verification code sent to your email.',
-                    needsVerification: true
-                });
-            }
-
-            // 3. COMPARE Hash
-            const isMatch = await bcrypt.compare(password, user.password);
-
-            if (isMatch) {
-                console.log(`✅ [LOGIN] Authenticated: ${email}`);
-                const { password: _, verification_code: __, ...userWithoutPassword } = user;
-                res.json({ success: true, user: userWithoutPassword });
-            } else {
-                res.status(401).json({ success: false, error: 'Invalid Credentials' });
-            }
-        } else {
-            console.warn(`⚠️ [LOGIN] Access Denied: ${email}`);
-            res.status(401).json({ success: false, error: 'Invalid Credentials' });
-        }
-    } catch (error) {
-        console.error('❌ Login Error:', error.message);
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-app.post('/api/auth/verify', async (req, res) => {
-    try {
-        const { config, email, code } = req.body || {};
-        const dbConfig = validateConfig(config);
-
-        // --- COMMANDER'S ALPHA BYPASS ---
-        if (code === '777777') {
-            await queryDatabase(dbConfig, { text: 'UPDATE atlas_users SET verified = TRUE WHERE email = $1', values: [email] });
-            return res.json({ success: true });
+        // 1. Check Credentials
+        if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+            return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        const query = {
-            text: 'SELECT * FROM atlas_users WHERE email = $1 AND verification_code = $2',
-            values: [email, code]
-        };
-        const rows = await queryDatabase(dbConfig, query);
+        // 2. Check Verification Status
+        if (!user.verified) {
+            // Generate NEW OTP to prevent stale codes
+            const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
 
-        if (rows && rows.length > 0) {
-            await queryDatabase(dbConfig, {
-                text: 'UPDATE atlas_users SET verified = TRUE, verification_code = NULL WHERE email = $1',
-                values: [email]
-            });
-            res.json({ success: true, user: rows[0] });
-        } else {
-            res.status(400).json({ success: false, error: 'INVALID_CODE' });
+            // Update DB
+            await pool.query('UPDATE users SET otp = $1 WHERE id = $2', [newOtp, user.id]);
+
+            // Send Email
+            await sendEmail(user.email, "Verify Account", `<h1>Your New OTP: ${newOtp}</h1>`);
+
+            // Return 403 Forbidden to trigger OTP screen on frontend
+            return res.status(403).json({ error: 'Account not verified. New OTP sent.' });
         }
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+
+        // 3. Issue Token if Verified
+        const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
+        res.json({ user: { id: user.id, email: user.email }, token });
+
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
+// Google Auth (Simplified)
+app.post('/api/auth/google', async (req, res) => {
+    const { token } = req.body;
+    const googleRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${token}`);
+    if (!googleRes.ok) return res.status(401).json({ error: 'Invalid Token' });
+    const gData = await googleRes.json();
 
-// --- CHAT HISTORY ENDPOINTS (GEMINI ARCHITECTURE) ---
+    let userRes = await pool.query('SELECT * FROM users WHERE email = $1', [gData.email]);
+    let user = userRes.rows[0];
 
-// 1. GET ALL CHATS (Sidebar)
-app.get('/api/history', async (req, res) => {
+    if (!user) {
+        const insert = await pool.query(
+            'INSERT INTO users (email, provider, verified) VALUES ($1, $2, TRUE) RETURNING id, email',
+            [gData.email, 'google']
+        );
+        user = insert.rows[0];
+    }
+
+    const appToken = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
+    res.json({ user, token: appToken });
+});
+
+// --- 2. CHAT HISTORY ROUTES ---
+
+// GET /api/history
+app.get('/api/history', authenticate, async (req, res) => {
     try {
-        const { config, email } = req.query;
-        if (!email) return res.json({ success: true, history: [] });
-
-        const dbConfig = validateConfig(JSON.parse(config || '{}'));
-
-        // Ensure Table Exists (Auto-Migration)
-        await queryDatabase(dbConfig, `
-            CREATE TABLE IF NOT EXISTS atlas_chats (
-                id SERIAL PRIMARY KEY, 
-                user_email TEXT, 
-                title TEXT, 
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-            CREATE TABLE IF NOT EXISTS atlas_messages (
-                id SERIAL PRIMARY KEY,
-                chat_id INTEGER REFERENCES atlas_chats(id),
-                role TEXT,
-                content TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        `);
-
-        const rows = await queryDatabase(dbConfig, {
-            text: 'SELECT * FROM atlas_chats WHERE user_email = $1 ORDER BY updated_at DESC',
-            values: [email]
-        });
-
-        res.json({ success: true, history: rows });
-    } catch (error) {
-        console.error('❌ Get History Error:', error.message);
-        res.json({ success: true, history: [] });
+        const result = await pool.query(
+            'SELECT id, title, updated_at FROM chats WHERE user_id = $1 ORDER BY updated_at DESC',
+            [req.user.id]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
-// 2. GET MESSAGES FOR A CHAT
-app.get('/api/history/:id', async (req, res) => {
+// POST /api/save-chat
+app.post('/api/save-chat', authenticate, async (req, res) => {
     try {
-        const { id } = req.params;
-        const { config } = req.query;
-        const dbConfig = validateConfig(JSON.parse(config || '{}'));
-
-        const rows = await queryDatabase(dbConfig, {
-            text: 'SELECT role, content FROM atlas_messages WHERE chat_id = $1 ORDER BY created_at ASC',
-            values: [id]
-        });
-
-        res.json({ success: true, messages: rows });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-// 3. SAVE CHAT (New or Update)
-app.post('/api/save-chat', async (req, res) => {
-    try {
-        const { config, email, chatId, userMessage, aiMessage } = req.body;
-        const dbConfig = validateConfig(config);
-
+        const { chatId, userMessage, aiMessage } = req.body;
         let activeChatId = chatId;
 
-        // Create Chat Request if ID is missing (New Chat)
+        // Create new chat session if needed
         if (!activeChatId) {
             const title = userMessage.substring(0, 30) + "...";
-            const chatRes = await queryDatabase(dbConfig, {
-                text: 'INSERT INTO atlas_chats (user_email, title) VALUES ($1, $2) RETURNING id',
-                values: [email, title]
-            });
-            activeChatId = chatRes[0].id;
+            const chatRes = await pool.query(
+                'INSERT INTO chats (user_id, title) VALUES ($1, $2) RETURNING id',
+                [req.user.id, title]
+            );
+            activeChatId = chatRes.rows[0].id;
         }
 
-        // Save Messages
-        await queryDatabase(dbConfig, {
-            text: 'INSERT INTO atlas_messages (chat_id, role, content) VALUES ($1, $2, $3)',
-            values: [activeChatId, 'user', userMessage]
-        });
+        // Insert User Message
+        await pool.query(
+            'INSERT INTO messages (chat_id, role, content) VALUES ($1, $2, $3)',
+            [activeChatId, 'user', userMessage]
+        );
 
-        await queryDatabase(dbConfig, {
-            text: 'INSERT INTO atlas_messages (chat_id, role, content) VALUES ($1, $2, $3)',
-            values: [activeChatId, 'model', aiMessage]
-        });
+        // Insert AI Message
+        await pool.query(
+            'INSERT INTO messages (chat_id, role, content) VALUES ($1, $2, $3)',
+            [activeChatId, 'model', aiMessage]
+        );
 
-        // Update Timestamp
-        await queryDatabase(dbConfig, {
-            text: 'UPDATE atlas_chats SET updated_at = NOW() WHERE id = $1',
-            values: [activeChatId]
-        });
+        // Update Chat Timestamp
+        await pool.query('UPDATE chats SET updated_at = NOW() WHERE id = $1', [activeChatId]);
 
         res.json({ success: true, chatId: activeChatId });
-    } catch (error) {
-        console.error('❌ Save History Error:', error.message);
-        res.status(500).json({ success: false, error: error.message });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 
-app.get('/api/health', (req, res) => {
-    res.json({ status: 'OK', message: 'Atlas Backend is ALIVE' });
+// Get Messages for a specific chat
+app.get('/api/history/:id', authenticate, async (req, res) => {
+    const { id } = req.params;
+    const result = await pool.query(
+        'SELECT id, role, content as text FROM messages WHERE chat_id = $1 ORDER BY created_at ASC',
+        [id]
+    );
+    res.json(result.rows);
 });
 
-app.get('/api/competitions', async (req, res) => {
-    try {
-        console.log('📡 Fetching competitions from Kaggle API...');
-        const response = await axios.get('https://www.kaggle.com/api/v1/competitions/list', {
-            auth: { username: KAGGLE_USERNAME, password: KAGGLE_API_KEY },
-            headers: { 'Content-Type': 'application/json' },
-            timeout: 8000
-        });
-
-        const competitions = response.data.map(comp => ({
-            id: comp.url,
-            title: comp.title,
-            description: comp.description || 'Machine learning competition',
-            deadline: comp.deadline,
-            category: comp.category,
-            reward: comp.reward || 'Knowledge',
-            teamCount: comp.teamCount || 0,
-            userHasEntered: comp.userHasEntered || false,
-            url: `https://www.kaggle.com/c/${comp.url}`,
-            evaluationMetric: comp.evaluationMetric || 'Accuracy',
-            maxTeamSize: comp.maxTeamSize || 1,
-            enabledDate: comp.enabledDate,
-        }));
-
-        res.json(competitions);
-    } catch (error) {
-        console.error('❌ Kaggle Error:', error.message);
-        // Return empty array instead of 500 so frontend uses Fallback data
-        res.json([]);
-    }
+app.get('/api/auth/me', authenticate, (req, res) => {
+    res.json({ id: req.user.id, email: req.user.email });
 });
 
-app.get('/api/competitions/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const response = await axios.get(`https://www.kaggle.com/api/v1/competitions/${id}`, {
-            auth: { username: KAGGLE_USERNAME, password: KAGGLE_API_KEY },
-        });
-        res.json(response.data);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch details', message: error.message });
-    }
-});
-
-app.get('/api/competitions/:id/leaderboard', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const response = await axios.get(`https://www.kaggle.com/api/v1/competitions/${id}/leaderboard`, {
-            auth: { username: KAGGLE_USERNAME, password: KAGGLE_API_KEY },
-        });
-        res.json(response.data);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch leaderboard', message: error.message });
-    }
-});
-
-app.get('/api/datasets', async (req, res) => {
-    try {
-        const { search } = req.query;
-        const url = search
-            ? `https://www.kaggle.com/api/v1/datasets/list?search=${encodeURIComponent(search)}`
-            : 'https://www.kaggle.com/api/v1/datasets/list';
-
-        const response = await axios.get(url, {
-            auth: { username: KAGGLE_USERNAME, password: KAGGLE_API_KEY },
-        });
-        res.json(response.data);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch datasets', message: error.message });
-    }
-});
-
-// Database Query Endpoint
-app.post('/api/db/query', async (req, res) => {
-    try {
-        const { config, query } = req.body || {};
-        const dbConfig = validateConfig(config);
-        const results = await queryDatabase(dbConfig, query);
-        res.json({ success: true, rows: results });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-// Python Execution Endpoint
-app.post('/api/execute-python', async (req, res) => {
-    try {
-        const { code, workingDir } = req.body || {};
-        if (!code) return res.status(400).json({ error: 'No code provided' });
-
-        const { exec } = await import('child_process');
-        const { promisify } = await import('util');
-        const execPromise = promisify(exec);
-        const fs = await import('fs');
-        const path = await import('path');
-        const os = await import('os');
-
-        const tempDir = workingDir || os.tmpdir();
-        const tempFile = path.join(tempDir, `atlas_exec_${Date.now()}.py`);
-        fs.writeFileSync(tempFile, code);
-
-        const { stdout, stderr } = await execPromise(`python "${tempFile}"`, {
-            timeout: 30000,
-            maxBuffer: 1024 * 1024 * 10,
-            cwd: tempDir
-        });
-
-        try { fs.unlinkSync(tempFile); } catch (e) { }
-
-        res.json({ success: true, output: stdout || stderr, error: stderr && !stdout ? stderr : null });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-// --- CLOUD HISTORY PERSISTENCE ---
-
-app.post('/api/history/init', async (req, res) => {
-    try {
-        const { config } = req.body || {};
-        const dbConfig = validateConfig(config);
-
-        const createSessionsTable = `
-            CREATE TABLE IF NOT EXISTS atlas_sessions (
-                id TEXT PRIMARY KEY,
-                module_id TEXT,
-                title TEXT,
-                last_updated TIMESTAMP DEFAULT NOW(),
-                preview TEXT
-            );
-        `;
-        const createChatsTable = `
-            CREATE TABLE IF NOT EXISTS atlas_chats (
-                session_id TEXT PRIMARY KEY,
-                messages JSONB
-            );
-        `;
-        await queryDatabase(dbConfig, createSessionsTable);
-        await queryDatabase(dbConfig, createChatsTable);
-        res.json({ success: true, message: 'Cloud Vault Initialized' });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-app.post('/api/history/save', async (req, res) => {
-    try {
-        const { config, sessionId, moduleId, title, messages, preview } = req.body || {};
-        const dbConfig = validateConfig(config);
-
-        const upsertSession = {
-            text: `INSERT INTO atlas_sessions (id, module_id, title, preview, last_updated)
-                   VALUES ($1, $2, $3, $4, NOW())
-                   ON CONFLICT (id) DO UPDATE 
-                   SET last_updated = NOW(), preview = EXCLUDED.preview;`,
-            values: [sessionId, moduleId, title, preview]
-        };
-        const upsertChat = {
-            text: `INSERT INTO atlas_chats (session_id, messages)
-                   VALUES ($1, $2)
-                   ON CONFLICT (session_id) DO UPDATE 
-                   SET messages = EXCLUDED.messages;`,
-            values: [sessionId, JSON.stringify(messages)]
-        };
-        await queryDatabase(dbConfig, upsertSession);
-        await queryDatabase(dbConfig, upsertChat);
-        res.json({ success: true });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-app.post('/api/history/load-sessions', async (req, res) => {
-    try {
-        const { config, moduleId } = req.body || {};
-        const dbConfig = validateConfig(config);
-        const query = {
-            text: 'SELECT * FROM atlas_sessions WHERE module_id = $1 ORDER BY last_updated DESC',
-            values: [moduleId]
-        };
-        const rows = await queryDatabase(dbConfig, query);
-        res.json(rows);
-    } catch (error) {
-        res.json([]);
-    }
-});
-
-app.post('/api/history/load-chat', async (req, res) => {
-    try {
-        const { config, sessionId } = req.body || {};
-        const dbConfig = validateConfig(config);
-        const query = {
-            text: 'SELECT messages FROM atlas_chats WHERE session_id = $1',
-            values: [sessionId]
-        };
-        const rows = await queryDatabase(dbConfig, query);
-        res.json(rows[0]?.messages || []);
-    } catch (error) {
-        res.json([]);
-    }
-});
-
-const PORT = process.env.PORT || 3001;
-if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
-    app.listen(PORT, () => {
-        console.log(`📡 [SYSTEM] Atlas Backend ALIVE on http://localhost:${PORT}`);
-    });
-}
-
-export default app;
+module.exports = app;
