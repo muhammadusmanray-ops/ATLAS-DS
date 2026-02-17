@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
 import { AppView, Message, User, ChatSession } from './types';
 import Sidebar from './components/Sidebar';
@@ -28,61 +27,190 @@ const CareerOps = lazy(() => import('./components/CareerOps'));
 const DeepResearch = lazy(() => import('./components/DeepResearch'));
 const LoginView = lazy(() => import('./components/LoginView'));
 
-// ... (imports remain)
-
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // New loading state
+  const [isLoading, setIsLoading] = useState(true);
   const [currentView, setCurrentView] = useState<AppView>(AppView.DASHBOARD);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  // ... (state defs)
+  const defaultMessage: Message = useMemo(() => ({
+    role: 'model',
+    content: "CORE_SYSTEMS: ACTIVE. Tactical Intelligence Node Atlas-X initialized. Monitoring and Logic clusters operational.",
+    type: 'text',
+    timestamp: new Date()
+  }), []);
+
+  const [messages, setMessages] = useState<Message[]>([defaultMessage]);
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [blueprintData, setBlueprintData] = useState<{ description: string; target: string } | null>(null);
+
+  const handleNavigateToAutoML = (data: { description: string; target: string }) => {
+    setBlueprintData(data);
+    setCurrentView(AppView.AUTOML);
+  };
+
+  const createNewSession = async (view: AppView) => {
+    const newId = crypto.randomUUID();
+    const title = `Mission ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    await db.createSession(newId, view, title, user?.id);
+
+    const newSession: ChatSession = {
+      id: newId,
+      moduleId: view,
+      title,
+      userId: user?.id,
+      lastUpdated: new Date(),
+      preview: 'New Mission Initialized...'
+    };
+
+    setSessions(prev => [newSession, ...prev]);
+    setCurrentSessionId(newId);
+    setMessages([defaultMessage]);
+  };
+
+  const handleSelectSession = async (sessionId: string) => {
+    const session = sessions.find(s => s.id === sessionId);
+    if (session && session.moduleId !== currentView) {
+      if (Object.values(AppView).includes(session.moduleId as AppView)) {
+        setCurrentView(session.moduleId as AppView);
+      }
+    }
+
+    setCurrentSessionId(sessionId);
+    const msgs = await db.getChatHistory(sessionId);
+    setMessages(msgs.length > 0 ? msgs : [defaultMessage]);
+
+    if (window.innerWidth < 768) setIsSidebarOpen(false);
+  };
 
   useEffect(() => {
     const initSystem = async () => {
       try {
         await db.init();
         const sessionUser = localStorage.getItem('ATLAS_USER_SESSION');
-
         if (sessionUser) {
           const parsedUser = JSON.parse(sessionUser);
           setUser(parsedUser);
           setIsAuthenticated(true);
         }
       } catch (e) {
-        console.error("Auth Check Failed:", e);
+        console.error("DIAGNOSTIC_INTERRUPT:", e);
       } finally {
-        setIsLoading(false); // Done checking
+        setIsLoading(false);
       }
     };
     initSystem();
+    if (window.innerWidth < 768) setIsSidebarOpen(false);
   }, []);
 
-  // ... (other useEffects)
+  useEffect(() => {
+    if (!isAuthenticated) return;
 
-  const handleLogin = (authenticatedUser: User) => {
+    const loadModuleContext = async () => {
+      const ignoreHistory = [AppView.DASHBOARD, AppView.SETTINGS, AppView.SECURITY];
+      if (ignoreHistory.includes(currentView)) {
+        setSessions([]);
+        setCurrentSessionId(null);
+        return;
+      }
+
+      const allSessions = await db.getAllSessions(user?.id);
+      setSessions(allSessions);
+
+      const currentViewSessions = allSessions.filter(s => s.moduleId === currentView);
+      if (currentViewSessions.length > 0) {
+        if (!currentSessionId || !allSessions.find(s => s.id === currentSessionId && s.moduleId === currentView)) {
+          handleSelectSession(currentViewSessions[0].id);
+        }
+      } else {
+        await createNewSession(currentView);
+      }
+    };
+    loadModuleContext();
+  }, [currentView, user, isAuthenticated]);
+
+  useEffect(() => {
+    if (messages.length > 0 && currentSessionId) {
+      db.saveChatHistory(currentSessionId, messages);
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg && lastMsg.role === 'model') {
+        const previewText = lastMsg.content.substring(0, 40) + '...';
+        db.updateSessionPreview(currentSessionId, previewText);
+        setSessions(prev => prev.map(s =>
+          s.id === currentSessionId
+            ? { ...s, preview: previewText, lastUpdated: new Date() }
+            : s
+        ).sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime()));
+      }
+    }
+  }, [messages, currentSessionId]);
+
+  useEffect(() => {
+    const autoTitle = async () => {
+      if (messages.length === 2 && currentSessionId) {
+        const currentSession = sessions.find(s => s.id === currentSessionId);
+        if (currentSession && currentSession.title.startsWith('Mission ')) {
+          try {
+            const userMsg = messages[0].content;
+            const response = await llmAdapter.chat(userMsg, 'Generate a very short 3-5 word title for this conversation. No quotes.', []);
+            if (response && response.text) {
+              const newTitle = response.text.replace(/"/g, '').trim();
+              await db.createSession(currentSessionId, currentSession.moduleId, newTitle, user?.id);
+              setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, title: newTitle } : s));
+            }
+          } catch (e) { console.warn('Auto-Title Failed', e); }
+        }
+      }
+    };
+    autoTitle();
+  }, [messages, currentSessionId, sessions, user]);
+
+  const handleLogin = async (authenticatedUser: User) => {
     setUser(authenticatedUser);
     setIsAuthenticated(true);
     localStorage.setItem('ATLAS_USER_SESSION', JSON.stringify(authenticatedUser));
+    await db.saveUser(authenticatedUser);
+  };
+
+  const handleUpdateUser = async (updatedUser: User) => {
+    setUser(updatedUser);
+    localStorage.setItem('ATLAS_USER_SESSION', JSON.stringify(updatedUser));
+    await db.saveUser(updatedUser);
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
     setUser(null);
     localStorage.removeItem('ATLAS_USER_SESSION');
-    window.location.reload(); // Hard reset
+    localStorage.removeItem('ATLAS_TOKEN');
+    window.location.reload();
   };
 
-  if (isLoading) return <div className="h-screen bg-black flex items-center justify-center text-[#76b900] orbitron">INITIALIZING_SYSTEM...</div>;
+  const handleDeleteSession = async (id: string) => {
+    await db.deleteSession(id);
+    setSessions(prev => prev.filter(s => s.id !== id));
+    if (currentSessionId === id) {
+      setCurrentSessionId(null);
+      setMessages([defaultMessage]);
+    }
+  };
 
-  if (!isAuthenticated) {
-    return (
-      <Suspense fallback={<div className="h-screen bg-black text-[#76b900]">Loading Gateway...</div>}>
-        <LoginView onLogin={handleLogin} />
-      </Suspense>
-    );
-  }
+  const handleRenameSession = async (id: string, title: string) => {
+    await db.renameSession(id, title);
+    setSessions(prev => prev.map(s => s.id === id ? { ...s, title, lastUpdated: new Date() } : s));
+  };
+
+  const handleClearChat = async () => {
+    const resetMsg = [{ ...defaultMessage, content: `ATLAS_MODULE_${currentView.toUpperCase()}: MEMORY PURGED.` }];
+    setMessages(resetMsg);
+    if (currentSessionId) await db.saveChatHistory(currentSessionId, resetMsg);
+  };
+
+  if (isLoading) return <div className="h-screen bg-black flex items-center justify-center text-[#76b900] orbitron text-xs tracking-widest">INITIALIZING_SYSTEM...</div>;
+
+  if (!isAuthenticated) return <Suspense fallback={null}><LoginView onLogin={handleLogin} /></Suspense>;
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#020203] text-gray-100 selection:bg-[#76b900] selection:text-black font-sans">
@@ -112,14 +240,6 @@ const App: React.FC = () => {
               <div className="w-2.5 h-2.5 rounded-full bg-[#76b900] shadow-[0_0_10px_#76b900] animate-pulse"></div>
               <span className="orbitron text-[9px] font-black text-[#76b900] uppercase tracking-[0.4em]">Combat Hub</span>
             </div>
-            <div className="hidden md:flex gap-6">
-              <div className="flex flex-col">
-                <span className="text-[7px] orbitron text-gray-500 uppercase font-bold tracking-widest">Neural Flow</span>
-                <div className="w-24 h-1 bg-gray-900 rounded-full mt-1 overflow-hidden">
-                  <div className="h-full bg-[#76b900] w-[88%] animate-pulse shadow-[0_0_5px_#76b900]"></div>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div className="flex items-center gap-6">
@@ -147,7 +267,6 @@ const App: React.FC = () => {
             {currentView === AppView.CHAT && <ChatView messages={messages} setMessages={setMessages} />}
             {currentView === AppView.SETTINGS && <SettingsView user={user} onUpdateUser={handleUpdateUser} onClearChat={handleClearChat} />}
             {currentView === AppView.SECURITY && <SecurityView />}
-
             {currentView === AppView.NOTEBOOK && <NotebookView />}
             {currentView === AppView.AUTOML && <AutoML blueprintData={blueprintData} />}
             {currentView === AppView.KAGGLE_HUB && <KaggleHub />}

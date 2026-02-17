@@ -19,6 +19,7 @@ class AtlasDatabase {
     return await res.json();
   }
 
+  // --- AUTHENTICATION ---
   async loginUser(email: string, password: string): Promise<any> {
     const data = await this.authFetch('/auth/login', {
       method: 'POST',
@@ -28,7 +29,8 @@ class AtlasDatabase {
     return data;
   }
 
-  async getAllSessions(): Promise<ChatSession[]> {
+  // --- CHAT HISTORY (DATABASE BACKED) ---
+  async getAllSessions(userId?: string): Promise<ChatSession[]> {
     try {
       const data = await this.authFetch('/history');
       return (data || []).map((h: any) => ({
@@ -81,12 +83,60 @@ class AtlasDatabase {
     return data.chatId.toString();
   }
 
-  // Legacy/Stubs
-  async init(): Promise<void> { return Promise.resolve(); }
-  async saveUser(user: User): Promise<void> { /* Handled via token */ }
-  async getAllUsers(): Promise<User[]> { return []; }
-  async deleteSession(id: string) { /* Backend implementation needed */ }
-  async renameSession(id: string, title: string) { /* Backend implementation needed */ }
+  // --- AUXILIARY MODULES (LOCAL PERSISTENCE) ---
+  async getNotebook() {
+    const val = localStorage.getItem('atlas_notebook_cells');
+    return val ? JSON.parse(val) : [];
+  }
+
+  async saveNotebook(cells: any[]) {
+    localStorage.setItem('atlas_notebook_cells', JSON.stringify(cells));
+  }
+
+  async purgeAll() {
+    localStorage.clear();
+    // In a real scenario, we might want to tell the server to purge too
+  }
+
+  async saveUser(user: User) {
+    localStorage.setItem('ATLAS_USER_SESSION', JSON.stringify(user));
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    const user = localStorage.getItem('ATLAS_USER_SESSION');
+    return user ? [JSON.parse(user)] : [];
+  }
+
+  async createSession(id: string, moduleId: string, title: string, userId?: string) {
+    // For non-chat modules, we can keep them local or eventually move to server
+    const sessions = await this.getAllSessions();
+    const newSession = { id, moduleId, title, userId, lastUpdated: new Date(), preview: '' };
+    localStorage.setItem(`atlas_local_session_${id}`, JSON.stringify(newSession));
+  }
+
+  async updateSessionPreview(id: string, preview: string) {
+    // Placeholder to satisfy build
+  }
+
+  async deleteSession(id: string) {
+    // Placeholder to satisfy build
+  }
+
+  async renameSession(id: string, title: string) {
+    // Placeholder to satisfy build
+  }
+
+  async init(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  async saveSettings(key: string, value: any): Promise<void> {
+    localStorage.setItem(`atlas_setting_${key}`, JSON.stringify(value));
+  }
+  async getSettings(key: string): Promise<any> {
+    const val = localStorage.getItem(`atlas_setting_${key}`);
+    return val ? JSON.parse(val) : null;
+  }
 }
 
 export const db = new AtlasDatabase();
