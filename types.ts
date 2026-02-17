@@ -1,11 +1,21 @@
+export enum AuthState {
+  IDLE = 'IDLE',
+  WELCOME = 'WELCOME',
+  EMAIL_INPUT = 'EMAIL_INPUT',
+  PASSWORD_LOGIN = 'PASSWORD_LOGIN',
+  PASSWORD_SIGNUP = 'PASSWORD_SIGNUP',
+  AUTHENTICATED = 'AUTHENTICATED',
+  OTP_VERIFY = 'OTP_VERIFY'
+}
 
 export interface User {
   id: string;
-  name: string;
+  name?: string;
   email: string;
-  avatar: string;
-  rank: 'Commander' | 'Lead Scientist' | 'Junior Intel';
+  avatar?: string;
+  rank?: 'Commander' | 'Lead Scientist' | 'Junior Intel';
   verified: boolean;
+  provider?: 'email' | 'google' | 'local';
 }
 
 export interface Message {

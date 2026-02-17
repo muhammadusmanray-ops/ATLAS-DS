@@ -1,223 +1,295 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { User, Message } from '../types';
-import { db } from '../services/storage';
+import React, { useState, useEffect } from 'react';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
+import { AuthState, User } from '../types';
+import { authService } from '../services/authService';
+import { AuthLayout, Divider } from './auth/AuthComponents';
+import { OtpScreen } from './auth/OtpScreen';
 
-// --- STYLES & COMPONENTS (Atlas Tactical Theme) ---
-// Note: We keep the tactical look but implement the EXACT multi-step logic from your Zip code
-
-const TacticalButton: React.FC<{ onClick?: () => void; children: React.ReactNode; loading?: boolean; type?: "button" | "submit" }> = ({ onClick, children, loading, type = "button" }) => (
-  <button
-    type={type}
-    onClick={onClick}
-    disabled={loading}
-    className="w-full bg-[#00f3ff] hover:bg-[#00d8e6] text-black font-black orbitron text-xs py-4 rounded shadow-[0_0_20px_rgba(0,243,255,0.3)] transition-all flex items-center justify-center gap-2 group"
-  >
-    {loading ? <i className="fa-solid fa-spinner fa-spin"></i> : children}
-  </button>
-);
-
-const TacticalInput: React.FC<{ value: string; onChange: (v: string) => void; placeholder: string; type?: string; autoFocus?: boolean }> = ({ value, onChange, placeholder, type = "text", autoFocus }) => (
-  <input
-    type={type}
-    autoFocus={autoFocus}
-    value={value}
-    onChange={(e) => onChange(e.target.value)}
-    placeholder={placeholder}
-    className="w-full bg-black/60 border border-[#00f3ff]/20 text-[#00f3ff] px-4 py-4 rounded orbitron text-xs focus:border-[#00f3ff] outline-none transition-all placeholder:text-[#00f3ff]/30 mb-4"
-  />
-);
-
-// --- MAIN LOGIN VIEW ---
 interface LoginViewProps {
   onLogin: (user: User) => void;
 }
 
-enum AuthStep {
-  WELCOME,
-  EMAIL_INPUT,
-  PASSWORD_LOGIN,
-  PASSWORD_SIGNUP,
-  OTP_VERIFY
+declare global {
+  interface Window {
+    google: any;
+  }
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
-  const [step, setStep] = useState<AuthStep>(AuthStep.WELCOME);
+  const [step, setStep] = useState<AuthState>(AuthState.WELCOME);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // 1. Check Email
-  const checkEmail = async (e: React.FormEvent) => {
+  const GOOGLE_CLIENT_ID = "Your_Google_Client_ID"; // User should set this
+
+  // Initialize Google Button
+  useEffect(() => {
+    if (step === AuthState.WELCOME) {
+      const interval = setInterval(() => {
+        if (window.google && window.google.accounts) {
+          clearInterval(interval);
+          try {
+            window.google.accounts.id.initialize({
+              client_id: GOOGLE_CLIENT_ID,
+              callback: handleGoogleResponse
+            });
+
+            const parent = document.getElementById("googleSignInDiv");
+            if (parent) {
+              window.google.accounts.id.renderButton(
+                parent,
+                { theme: "filled_black", size: "large", width: "100%", text: "continue_with" }
+              );
+            }
+          } catch (e) {
+            console.error("Google Auth Error:", e);
+          }
+        }
+      }, 500);
+      return () => clearInterval(interval);
+    }
+  }, [step]);
+
+  const handleGoogleResponse = async (response: any) => {
+    setIsLoading(true);
+    try {
+      const user = await authService.googleLogin(response.credential);
+      onLogin(user);
+    } catch (err: any) {
+      setError("Google Login Failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Step 1: Email Submission
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.includes('@')) return setError("INVALID_NODE_ADDRESS");
+    if (!email || !email.includes('@')) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const exists = await authService.checkUserExists(email);
+      if (exists) {
+        setStep(AuthState.PASSWORD_LOGIN);
+      } else {
+        setStep(AuthState.PASSWORD_SIGNUP);
+      }
+    } catch (err) {
+      setError('Something went wrong. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Step 2: Login Submission
+  const handleLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password) return;
 
     setIsLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/auth/check-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.toLowerCase() })
-      });
-      const data = await res.json();
-      if (data.exists) setStep(AuthStep.PASSWORD_LOGIN);
-      else setStep(AuthStep.PASSWORD_SIGNUP);
-    } catch (err) {
-      setError("COMM_LINK_ERROR");
+      const result = await authService.login(email, password);
+      if (result.needsVerification) {
+        setStep(AuthState.OTP_VERIFY);
+      } else {
+        onLogin(result);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Invalid credentials.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // 2. Login/Register
-  const handleAuth = async (isSignup: boolean) => {
+  // Step 2: Signup Submission
+  const handleSignupSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
+
     setIsLoading(true);
     setError('');
-    const endpoint = isSignup ? '/api/auth/register' : '/api/auth/login';
     try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.toLowerCase(), password })
-      });
-      const data = await res.json();
-
-      if (res.status === 403) {
-        // Verification Needed
-        setStep(AuthStep.OTP_VERIFY);
-      } else if (res.ok) {
-        if (data.token) localStorage.setItem('ATLAS_TOKEN', data.token);
-        onLogin(data.user);
-      } else {
-        setError(data.error || "ACCESS_DENIED");
-      }
-    } catch (err) {
-      setError("ENCRYPTION_FAIL");
+      const user = await authService.register(email, password);
+      // Backend automatically sends OTP and requires verification
+      setStep(AuthState.OTP_VERIFY);
+    } catch (err: any) {
+      setError(err.message || 'Registration failed.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // 3. Verify OTP
-  const verifyOtp = async (code: string) => {
+  // Step 3: OTP Verification
+  const handleOtpVerify = async (code: string) => {
     setIsLoading(true);
+    setError('');
     try {
-      const res = await fetch('/api/auth/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.toLowerCase(), code })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        if (data.token) localStorage.setItem('ATLAS_TOKEN', data.token);
-        onLogin(data.user);
-      } else {
-        setError("CODE_INVALID");
-      }
-    } catch (err) {
-      setError("BUFFER_OVERFLOW");
+      const user = await authService.verifyOtp(email, code);
+      onLogin(user);
+    } catch (err: any) {
+      setError(err.message || 'Verification failed.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // OTP Input Logic
-  const handleOtpChange = (index: number, val: string) => {
-    if (isNaN(Number(val))) return;
-    const newOtp = [...otp];
-    newOtp[index] = val;
-    setOtp(newOtp);
-    if (val && index < 5) otpRefs.current[index + 1]?.focus();
-    if (newOtp.join('').length === 6) verifyOtp(newOtp.join(''));
-  };
+  // --- RENDERERS ---
 
-  return (
-    <div className="min-h-screen bg-[#020203] flex items-center justify-center p-6 relative overflow-hidden">
-      {/* Background Effects */}
-      <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#00f3ff 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
-      <div className="w-full max-w-md bg-black/80 border border-[#00f3ff]/20 backdrop-blur-3xl p-10 rounded-2xl shadow-[0_0_50px_rgba(0,243,255,0.1)] relative z-10">
+  if (step === AuthState.OTP_VERIFY) {
+    return (
+      <OtpScreen
+        email={email}
+        onVerify={handleOtpVerify}
+        onResend={() => authService.register(email, password)}
+        isLoading={isLoading}
+        error={error}
+      />
+    );
+  }
 
-        <div className="text-center mb-10">
-          <div className="w-16 h-16 bg-[#00f3ff]/10 border border-[#00f3ff] rounded-xl mx-auto flex items-center justify-center mb-6 shadow-[0_0_20px_rgba(0,243,255,0.2)]">
-            <i className="fa-solid fa-shield-halved text-2xl text-[#00f3ff]"></i>
-          </div>
-          <h2 className="orbitron text-lg font-black text-white tracking-[0.2em] uppercase">Tactical Gateway</h2>
-          <p className="orbitron text-[9px] text-[#00f3ff] mt-2 opacity-50 tracking-widest font-bold uppercase">Authorized Personnel Only</p>
-        </div>
-
-        {error && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/50 text-red-500 orbitron text-[10px] uppercase font-bold text-center">
-            <i className="fa-solid fa-triangle-exclamation mr-2"></i> {error}
-          </div>
-        )}
-
-        {step === AuthStep.WELCOME && (
+  if (step === AuthState.WELCOME) {
+    return (
+      <AuthLayout>
+        <div className="text-center space-y-6">
+          <h1 className="text-2xl font-bold text-white mb-2">Welcome back</h1>
           <div className="space-y-4">
-            <button onClick={() => setStep(AuthStep.EMAIL_INPUT)} className="w-full bg-[#00f3ff]/5 border border-[#00f3ff]/20 text-white orbitron text-xs py-4 rounded hover:bg-[#00f3ff]/10 transition-all flex items-center justify-center gap-3">
-              <i className="fa-solid fa-envelope"></i> Continue with Email
-            </button>
-            <div className="flex items-center gap-4 py-2 opacity-20"><div className="flex-1 h-[1px] bg-[#00f3ff]"></div><span className="orbitron text-[8px] text-[#00f3ff]">OR</span><div className="flex-1 h-[1px] bg-[#00f3ff]"></div></div>
-            <button className="w-full bg-white/5 border border-white/10 text-white orbitron text-xs py-4 rounded hover:bg-white/10 transition-all flex items-center justify-center gap-3">
-              <i className="fa-brands fa-google text-red-500"></i> Continue with Google
-            </button>
-          </div>
-        )}
-
-        {step === AuthStep.EMAIL_INPUT && (
-          <form onSubmit={checkEmail}>
-            <p className="orbitron text-[9px] text-[#00f3ff] mb-4 uppercase tracking-widest font-bold">Identity Node (Email)</p>
-            <TacticalInput value={email} onChange={setEmail} placeholder="ENTER_EMAIL_ADDRESS" autoFocus />
-            <TacticalButton type="submit" loading={isLoading}>ACCESS_NODE &rarr;</TacticalButton>
-            <button type="button" onClick={() => setStep(AuthStep.WELCOME)} className="w-full text-center orbitron text-[8px] text-[#00f3ff]/50 hover:text-[#00f3ff] mt-6 transition-all">&larr; ABORT_OPERATION</button>
-          </form>
-        )}
-
-        {step === AuthStep.PASSWORD_LOGIN && (
-          <div>
-            <p className="orbitron text-[9px] text-[#00f3ff] mb-4 uppercase tracking-widest font-bold">NODE: {email}</p>
-            <TacticalInput type="password" value={password} onChange={setPassword} placeholder="SECURITY_KEY" autoFocus />
-            <TacticalButton onClick={() => handleAuth(false)} loading={isLoading}>DECRYPT_ACCESS</TacticalButton>
-            <button type="button" onClick={() => setStep(AuthStep.EMAIL_INPUT)} className="w-full text-center orbitron text-[8px] text-[#00f3ff]/50 mt-6">&larr; SWITCH_NODE</button>
-          </div>
-        )}
-
-        {step === AuthStep.PASSWORD_SIGNUP && (
-          <div>
-            <p className="orbitron text-[9px] text-[#00f3ff] mb-4 uppercase tracking-widest font-bold">INITIATING_ACCOUNT: {email}</p>
-            <TacticalInput type="password" value={password} onChange={setPassword} placeholder="CREATE_STRONG_KEY" autoFocus />
-            <TacticalButton onClick={() => handleAuth(true)} loading={isLoading}>ESTABLISH_SESSION</TacticalButton>
-            <button type="button" onClick={() => setStep(AuthStep.EMAIL_INPUT)} className="w-full text-center orbitron text-[8px] text-[#00f3ff]/50 mt-6">&larr; REVERSE_ENROLL</button>
-          </div>
-        )}
-
-        {step === AuthStep.OTP_VERIFY && (
-          <div className="text-center">
-            <p className="orbitron text-[10px] text-white mb-2 uppercase tracking-widest">VERIFICATION_CODE_SENT</p>
-            <p className="orbitron text-[8px] text-[#00f3ff]/60 mb-8 lowercase tracking-widest">check {email}</p>
-            <div className="flex justify-between gap-2 mb-8">
-              {otp.map((digit, i) => (
-                <input
-                  key={i}
-                  ref={el => otpRefs.current[i] = el}
-                  type="text"
-                  maxLength={1}
-                  value={digit}
-                  onChange={e => handleOtpChange(i, e.target.value)}
-                  className="w-12 h-14 bg-black border border-[#00f3ff]/30 text-[#00f3ff] text-center orbitron text-xl font-black focus:border-[#00f3ff] outline-none rounded shadow-[0_0_10px_rgba(0,243,255,0.1)]"
-                />
-              ))}
+            <div className="relative">
+              <input
+                type="email"
+                placeholder="Email address"
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-500 outline-none focus:border-emerald-500 transition-all cursor-pointer"
+                onClick={() => setStep(AuthState.EMAIL_INPUT)}
+                readOnly
+              />
+              <button
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-emerald-600 p-1.5 rounded-md text-white hover:bg-emerald-500 transition-colors"
+                onClick={() => setStep(AuthState.EMAIL_INPUT)}
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+              </button>
             </div>
-            <TacticalButton onClick={() => verifyOtp(otp.join(''))} loading={isLoading}>VERIFY_IDENTITY</TacticalButton>
-            <button className="orbitron text-[8px] text-[#00f3ff]/50 mt-8 hover:underline">RESEND_ENCRYPTION_CODE</button>
+            <Divider />
+            <div className="w-full flex justify-center">
+              <div id="googleSignInDiv" className="w-full h-[44px]"></div>
+            </div>
           </div>
-        )}
+          <div className="flex items-center justify-center gap-2 text-sm text-slate-400 mt-4">
+            Don't have an account?
+            <button onClick={() => setStep(AuthState.EMAIL_INPUT)} className="text-emerald-500 hover:underline">Sign up</button>
+          </div>
+        </div>
+      </AuthLayout>
+    );
+  }
 
-      </div>
-    </div>
-  );
+  if (step === AuthState.EMAIL_INPUT) {
+    return (
+      <AuthLayout>
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-bold text-white">Get started</h1>
+        </div>
+        <form onSubmit={handleEmailSubmit} className="space-y-4">
+          <Input
+            type="email"
+            placeholder="Email address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoFocus
+            error={error}
+          />
+          <Button type="submit" isLoading={isLoading} className="w-full">Continue</Button>
+        </form>
+        <div className="mt-4 text-center">
+          <span className="text-sm text-slate-400">
+            Already have an account? <button onClick={() => setStep(AuthState.WELCOME)} className="text-emerald-500 hover:underline">Log in</button>
+          </span>
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  if (step === AuthState.PASSWORD_LOGIN) {
+    return (
+      <AuthLayout>
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-bold text-white">Enter your password</h1>
+          <div className="mt-2 flex items-center justify-center gap-2">
+            <span className="text-sm text-slate-400 px-3 py-1 bg-slate-800 rounded-full border border-slate-700">
+              {email}
+            </span>
+            <button onClick={() => { setStep(AuthState.EMAIL_INPUT); setPassword(''); setError(''); }} className="text-xs text-emerald-500 hover:underline">Edit</button>
+          </div>
+        </div>
+        <form onSubmit={handleLoginSubmit} className="space-y-4">
+          <Input
+            type="password"
+            placeholder="Password"
+            label="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoFocus
+            error={error}
+          />
+          <div className="flex justify-end">
+            <button type="button" className="text-sm text-emerald-500 hover:underline">Forgot password?</button>
+          </div>
+          <Button type="submit" isLoading={isLoading} className="w-full">Log in</Button>
+        </form>
+        <div className="mt-6 text-center">
+          <button onClick={() => setStep(AuthState.WELCOME)} className="text-sm text-slate-500 hover:text-slate-300">
+            &larr; Back to start
+          </button>
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  if (step === AuthState.PASSWORD_SIGNUP) {
+    return (
+      <AuthLayout>
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-bold text-white">Create your account</h1>
+          <p className="text-slate-400 text-sm mt-2">
+            Welcome! Please create a password for <br /><span className="text-slate-200">{email}</span>
+          </p>
+        </div>
+        <form onSubmit={handleSignupSubmit} className="space-y-4">
+          <Input
+            type="password"
+            placeholder="At least 8 characters"
+            label="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoFocus
+            error={error}
+          />
+          <Button type="submit" isLoading={isLoading} className="w-full">Continue</Button>
+        </form>
+        <div className="mt-6 text-center">
+          <button onClick={() => setStep(AuthState.EMAIL_INPUT)} className="text-sm text-slate-500 hover:text-slate-300">
+            &larr; Use a different email
+          </button>
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  return null;
 };
 
 export default LoginView;
