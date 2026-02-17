@@ -44,19 +44,36 @@ export const authService = {
 
     // Register a new user
     register: async (email: string, password: string): Promise<User> => {
-        const res = await fetch(`${API_URL}/register`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
-        });
+        try {
+            const res = await fetch(`${API_URL}/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Registration failed');
+            // Defensive parsing: get raw text first to debug non-JSON responses
+            const rawText = await res.text();
+            console.log('[AUTH_DEBUG] Register response status:', res.status);
+            console.log('[AUTH_DEBUG] Register response preview:', rawText.substring(0, 200));
 
-        // Save token (if returned)
-        if (data.token) localStorage.setItem('auth_token', data.token);
+            let data;
+            try {
+                data = JSON.parse(rawText);
+            } catch (parseError) {
+                console.error('[AUTH_ERROR] Backend returned non-JSON response:', rawText);
+                throw new Error(`Server error: ${rawText.substring(0, 100)}...`);
+            }
 
-        return data.user;
+            if (!res.ok) throw new Error(data.error || 'Registration failed');
+
+            // Save token (if returned)
+            if (data.token) localStorage.setItem('auth_token', data.token);
+
+            return data.user;
+        } catch (error: any) {
+            console.error('[AUTH_CRITICAL] Registration failed:', error.message);
+            throw error;
+        }
     },
 
     // Login with email and password
