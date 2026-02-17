@@ -1,95 +1,92 @@
-import { Message, User, ChatSession, NotebookCell } from '../types';
+import { Message, User, ChatSession } from '../types';
 
 const API_URL = '/api';
 
 class AtlasDatabase {
-  private db: IDBDatabase | null = null;
+  private async authFetch(endpoint: string, options: any = {}) {
+    const token = localStorage.getItem('ATLAS_TOKEN');
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      ...options.headers
+    };
 
-  // --- AUTHENTICATION (NEW BACKEND) ---
+    const res = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw { status: res.status, ...data };
+    }
+    return await res.json();
+  }
+
   async loginUser(email: string, password: string): Promise<any> {
-    const config = localStorage.getItem('atlas_db_config'); // Get DB config if needed
-    const res = await fetch(`${API_URL}/auth/login`, {
+    const data = await this.authFetch('/auth/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, config: config ? JSON.parse(config) : {} })
+      body: JSON.stringify({ email, password })
     });
-    const data = await res.json();
-    if (!res.ok) throw { status: res.status, ...data };
+    if (data.token) localStorage.setItem('ATLAS_TOKEN', data.token);
     return data;
   }
 
-  async verifyUser(email: string, code: string): Promise<any> {
-    const config = localStorage.getItem('atlas_db_config');
-    const res = await fetch(`${API_URL}/auth/verify`, {
+  async getAllSessions(): Promise<ChatSession[]> {
+    try {
+      const data = await this.authFetch('/history');
+      return (data || []).map((h: any) => ({
+        id: h.id.toString(),
+        moduleId: 'chat',
+        title: h.title,
+        userId: h.user_id,
+        lastUpdated: new Date(h.updated_at),
+        preview: 'Mission context restored...'
+      }));
+    } catch (e) {
+      console.warn("History Load Failed:", e);
+      return [];
+    }
+  }
+
+  async getChatHistory(chatId: string): Promise<Message[]> {
+    try {
+      const data = await this.authFetch(`/history/${chatId}`);
+      return (data || []).map((msg: any) => ({
+        role: msg.role === 'model' ? 'model' : 'user',
+        content: msg.text || msg.content,
+        type: 'text',
+        timestamp: new Date(msg.created_at || Date.now())
+      }));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async saveChatHistory(chatId: string | null, messages: Message[]): Promise<void> {
+    if (messages.length < 2) return;
+    const lastAI = messages[messages.length - 1];
+    const lastUser = messages[messages.length - 2];
+
+    if (lastAI.role === 'model' && lastUser.role === 'user') {
+      await this.saveChat(chatId || undefined, lastUser.content, lastAI.content);
+    }
+  }
+
+  async saveChat(chatId: string | undefined, userMessage: string, aiMessage: string): Promise<string> {
+    const data = await this.authFetch('/save-chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, code, config: config ? JSON.parse(config) : {} })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error);
-    return data;
-  }
-
-  // --- HISTORY (NEW BACKEND) ---
-  async fetchHistory(email: string): Promise<any[]> {
-    const config = localStorage.getItem('atlas_db_config');
-    const query = new URLSearchParams({ email, config: config || '{}' }).toString();
-    const res = await fetch(`${API_URL}/history?${query}`);
-    const data = await res.json();
-    return data.history || [];
-  }
-
-  async fetchChatMessages(chatId: string): Promise<Message[]> {
-    const config = localStorage.getItem('atlas_db_config');
-    const query = new URLSearchParams({ config: config || '{}' }).toString();
-    const res = await fetch(`${API_URL}/history/${chatId}?${query}`);
-    const data = await res.json();
-
-    // Map backend format to frontend types
-    return (data.messages || []).map((msg: any) => ({
-      id: msg.id || Math.random().toString(),
-      role: msg.role === 'model' ? 'assistant' : 'user',
-      content: msg.content,
-      timestamp: new Date(msg.created_at || Date.now())
-    }));
-  }
-
-  async saveChat(email: string, chatId: string | undefined, userMessage: string, aiMessage: string): Promise<string> {
-    const config = localStorage.getItem('atlas_db_config');
-    const res = await fetch(`${API_URL}/save-chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email,
-        chatId: chatId === 'new' ? undefined : chatId,
+        chatId: chatId && chatId !== 'new' ? chatId : undefined,
         userMessage,
-        aiMessage,
-        config: config ? JSON.parse(config) : {}
+        aiMessage
       })
     });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error);
-    return data.chatId;
+    return data.chatId.toString();
   }
 
-
-  // --- LEGACY INDEXEDDB (Kept for Offline Support/Settings) ---
-  // ... (Keeping minimal IndexedDB for local settings/notebooks if needed) ...
-
-  async init(): Promise<void> {
-    console.log("ATLAS_DB: API Mode Active (IndexedDB Standby)");
-    return Promise.resolve();
-  }
-
-  // Helper for settings (still local)
-  async saveSettings(key: string, value: any): Promise<void> {
-    localStorage.setItem(`atlas_setting_${key}`, JSON.stringify(value));
-  }
-
-  async getSettings(key: string): Promise<any> {
-    const val = localStorage.getItem(`atlas_setting_${key}`);
-    return val ? JSON.parse(val) : null;
-  }
+  // Legacy/Stubs
+  async init(): Promise<void> { return Promise.resolve(); }
+  async saveUser(user: User): Promise<void> { /* Handled via token */ }
+  async getAllUsers(): Promise<User[]> { return []; }
+  async deleteSession(id: string) { /* Backend implementation needed */ }
+  async renameSession(id: string, title: string) { /* Backend implementation needed */ }
 }
 
 export const db = new AtlasDatabase();

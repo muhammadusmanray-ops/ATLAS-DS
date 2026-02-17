@@ -1,275 +1,220 @@
-import React, { useState, useEffect } from 'react';
-import { User } from '../types';
+import React, { useState, useEffect, useRef } from 'react';
+import { User, Message } from '../types';
+import { db } from '../services/storage';
 
+// --- STYLES & COMPONENTS (Atlas Tactical Theme) ---
+// Note: We keep the tactical look but implement the EXACT multi-step logic from your Zip code
+
+const TacticalButton: React.FC<{ onClick?: () => void; children: React.ReactNode; loading?: boolean; type?: "button" | "submit" }> = ({ onClick, children, loading, type = "button" }) => (
+  <button
+    type={type}
+    onClick={onClick}
+    disabled={loading}
+    className="w-full bg-[#00f3ff] hover:bg-[#00d8e6] text-black font-black orbitron text-xs py-4 rounded shadow-[0_0_20px_rgba(0,243,255,0.3)] transition-all flex items-center justify-center gap-2 group"
+  >
+    {loading ? <i className="fa-solid fa-spinner fa-spin"></i> : children}
+  </button>
+);
+
+const TacticalInput: React.FC<{ value: string; onChange: (v: string) => void; placeholder: string; type?: string; autoFocus?: boolean }> = ({ value, onChange, placeholder, type = "text", autoFocus }) => (
+  <input
+    type={type}
+    autoFocus={autoFocus}
+    value={value}
+    onChange={(e) => onChange(e.target.value)}
+    placeholder={placeholder}
+    className="w-full bg-black/60 border border-[#00f3ff]/20 text-[#00f3ff] px-4 py-4 rounded orbitron text-xs focus:border-[#00f3ff] outline-none transition-all placeholder:text-[#00f3ff]/30 mb-4"
+  />
+);
+
+// --- MAIN LOGIN VIEW ---
 interface LoginViewProps {
   onLogin: (user: User) => void;
 }
 
-const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
-  const [mode, setMode] = useState<'login' | 'register' | 'verify'>('login');
-  const [formData, setFormData] = useState({ name: '', email: '', password: '', code: '' });
+enum AuthStep {
+  WELCOME,
+  EMAIL_INPUT,
+  PASSWORD_LOGIN,
+  PASSWORD_SIGNUP,
+  OTP_VERIFY
+}
+
+export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
+  const [step, setStep] = useState<AuthStep>(AuthStep.WELCOME);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Terminal logs for effect
-  const [logs, setLogs] = useState<string[]>([]);
-
-  useEffect(() => {
-    addLog("SYSTEM_INIT: SECURE GATEWAY v6.5");
-    addLog("AUTH_RELAY: DISPATCHER_VERIFIED");
-  }, []);
-
-  const addLog = (msg: string) => {
-    setLogs(prev => [...prev.slice(-4), `> ${msg}`]);
-  };
-
-  const handleAuth = async (e: React.FormEvent) => {
+  // 1. Check Email
+  const checkEmail = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email.includes('@')) return setError("INVALID_NODE_ADDRESS");
+
+    setIsLoading(true);
     setError('');
-    setLoading(true);
-    addLog(`${mode.toUpperCase()}_ATTEMPT: ${formData.email}`);
-
     try {
-      if (mode === 'verify') {
-        const res = await fetch('/api/auth/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: formData.email, code: formData.code })
-        });
-        const data = await res.json();
-        if (!data.success) throw new Error(data.error);
-
-        addLog("VERIFICATION_SUCCESS: Access Ready.");
-        localStorage.setItem('ATLAS_USER_SESSION', JSON.stringify(data.user));
-        onLogin(data.user);
-        return;
-      }
-
-      // LOGIN / REGISTER
-      const endpoint = mode === 'register' ? '/api/auth/register' : '/api/auth/login';
-      const res = await fetch(endpoint, {
+      const res = await fetch('/api/auth/check-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          avatar: mode === 'register' ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.name}` : undefined
-        })
+        body: JSON.stringify({ email: email.toLowerCase() })
       });
-
       const data = await res.json();
-
-      if (res.status === 403 && data.needsVerification) {
-        addLog("PROTOCOL_HOLD: Email Verification Required.");
-        setMode('verify');
-        setError('');
-        return;
-      }
-
-      if (!data.success) throw new Error(data.error);
-
-      if (mode === 'register' && data.needsVerification) {
-        addLog("DISPATCHED: Security code sent to inbox.");
-        if (data._hint) {
-          console.log("🛠️ [ALPHA_DIAGNOSTIC] Verification Code:", data._hint);
-          addLog("HINT: Check browser console (F12) if email delayed.");
-        }
-        setMode('verify');
-        return;
-      }
-
-      addLog("ACCESS_GRANTED: Handshake Complete.");
-      // 🛡️ SESSION PERSISTED ONLY ON SUCCESS
-      localStorage.setItem('ATLAS_USER_SESSION', JSON.stringify(data.user));
-      onLogin(data.user);
-
-    } catch (err: any) {
-      setError(err.message || "PROTOCOL_ERROR: Failed.");
-      addLog(`DENIED: Security protocols active.`);
+      if (data.exists) setStep(AuthStep.PASSWORD_LOGIN);
+      else setStep(AuthStep.PASSWORD_SIGNUP);
+    } catch (err) {
+      setError("COMM_LINK_ERROR");
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const handleGuestLogin = () => {
-    addLog("BYPASS: GUEST PROTOCOL INITIATED...");
-    setLoading(true);
-    setTimeout(() => {
-      onLogin({
-        id: 'guest_001',
-        name: 'Visiting Officer',
-        email: 'guest@atlas.demo',
-        avatar: 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
-        rank: 'Junior Intel',
-        verified: false
+  // 2. Login/Register
+  const handleAuth = async (isSignup: boolean) => {
+    setIsLoading(true);
+    setError('');
+    const endpoint = isSignup ? '/api/auth/register' : '/api/auth/login';
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.toLowerCase(), password })
       });
-    }, 1500);
+      const data = await res.json();
+
+      if (res.status === 403) {
+        // Verification Needed
+        setStep(AuthStep.OTP_VERIFY);
+      } else if (res.ok) {
+        if (data.token) localStorage.setItem('ATLAS_TOKEN', data.token);
+        onLogin(data.user);
+      } else {
+        setError(data.error || "ACCESS_DENIED");
+      }
+    } catch (err) {
+      setError("ENCRYPTION_FAIL");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 3. Verify OTP
+  const verifyOtp = async (code: string) => {
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.toLowerCase(), code })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (data.token) localStorage.setItem('ATLAS_TOKEN', data.token);
+        onLogin(data.user);
+      } else {
+        setError("CODE_INVALID");
+      }
+    } catch (err) {
+      setError("BUFFER_OVERFLOW");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // OTP Input Logic
+  const handleOtpChange = (index: number, val: string) => {
+    if (isNaN(Number(val))) return;
+    const newOtp = [...otp];
+    newOtp[index] = val;
+    setOtp(newOtp);
+    if (val && index < 5) otpRefs.current[index + 1]?.focus();
+    if (newOtp.join('').length === 6) verifyOtp(newOtp.join(''));
   };
 
   return (
-    <div className="h-screen w-full flex items-center justify-center bg-[#050505] relative overflow-hidden font-sans">
-      {/* Background Cyber Effects */}
-      <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'linear-gradient(#00f3ff 1px, transparent 1px), linear-gradient(90deg, #00f3ff 1px, transparent 1px)', backgroundSize: '50px 50px' }}></div>
-      <div className="absolute top-0 left-0 w-full h-1 bg-[#00f3ff] shadow-[0_0_20px_#00f3ff] animate-pulse"></div>
+    <div className="min-h-screen bg-[#020203] flex items-center justify-center p-6 relative overflow-hidden">
+      {/* Background Effects */}
+      <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#00f3ff 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
+      <div className="w-full max-w-md bg-black/80 border border-[#00f3ff]/20 backdrop-blur-3xl p-10 rounded-2xl shadow-[0_0_50px_rgba(0,243,255,0.1)] relative z-10">
 
-      <div className="relative w-full max-w-md z-10">
-        {/* Holographic Card */}
-        <div className="bg-black/90 border border-white/10 backdrop-blur-xl p-8 rounded-none shadow-[0_0_60px_rgba(0,243,255,0.05)] relative overflow-hidden">
-
-          {/* Animated Borders */}
-          <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-[#00f3ff]"></div>
-          <div className="absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 border-[#00f3ff]"></div>
-          <div className="absolute bottom-0 left-0 w-2 h-2 border-b-2 border-l-2 border-[#00f3ff]"></div>
-          <div className="absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 border-[#00f3ff]"></div>
-
-          {/* Header */}
-          <div className="text-center mb-8">
-            <div className="flex justify-center mb-4">
-              <div className="w-12 h-12 bg-[#00f3ff]/10 rounded-full flex items-center justify-center border border-[#00f3ff]/50 animate-pulse">
-                <i className="fa-solid fa-fingerprint text-[#00f3ff] text-xl"></i>
-              </div>
-            </div>
-            <h1 className="orbitron text-3xl font-black text-white italic tracking-tighter">ATLAS<span className="text-[#00f3ff]">X</span></h1>
-            <p className="text-[10px] orbitron tracking-[0.2em] text-gray-500 uppercase mt-2">Login to your account</p>
+        <div className="text-center mb-10">
+          <div className="w-16 h-16 bg-[#00f3ff]/10 border border-[#00f3ff] rounded-xl mx-auto flex items-center justify-center mb-6 shadow-[0_0_20px_rgba(0,243,255,0.2)]">
+            <i className="fa-solid fa-shield-halved text-2xl text-[#00f3ff]"></i>
           </div>
-
-          {/* Toggle Tabs - Tactical Onboarding */}
-          <div className="flex mb-8 border-b border-white/10">
-            <button
-              onClick={() => { setMode('login'); setError(''); }}
-              className={`flex-1 py-3 text-[10px] orbitron font-black uppercase tracking-[0.3em] transition-all relative ${mode === 'login' || mode === 'verify' ? 'text-[#00f3ff]' : 'text-gray-600 hover:text-gray-400'}`}
-            >
-              SECURE GATEWAY
-              {(mode === 'login' || mode === 'verify') && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#00f3ff] shadow-[0_0_10px_#00f3ff]"></div>}
-            </button>
-            <button
-              onClick={() => { setMode('register'); setError(''); }}
-              className={`flex-1 py-3 text-[10px] orbitron font-black uppercase tracking-[0.3em] transition-all relative ${mode === 'register' ? 'text-[#ff00ff]' : 'text-gray-600 hover:text-gray-400'}`}
-            >
-              ONBOARD NODE
-              {mode === 'register' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#ff00ff] shadow-[0_0_10px_#ff00ff]"></div>}
-            </button>
-          </div>
-
-          {/* Form */}
-          <form onSubmit={handleAuth} className="space-y-5">
-            {mode === 'verify' ? (
-              <div className="space-y-4 animate-in fade-in zoom-in duration-500">
-                <div className="text-center py-2">
-                  <div className="w-10 h-10 bg-[#00f3ff]/10 rounded border border-[#00f3ff]/30 flex items-center justify-center mx-auto mb-2">
-                    <i className="fa-solid fa-envelope-open-text text-[#00f3ff] text-sm"></i>
-                  </div>
-                  <h3 className="orbitron text-[10px] text-white font-bold tracking-[0.2em] uppercase">Protocol Cipher Required</h3>
-                  <p className="text-[9px] text-gray-500 mt-1">Check <span className="text-[#00f3ff] font-mono">{formData.email}</span> for handshake code.</p>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] orbitron font-bold text-gray-500 uppercase tracking-widest text-[#00f3ff]">6-Digit Code</label>
-                  <input
-                    type="text"
-                    required
-                    maxLength={6}
-                    value={formData.code}
-                    onChange={e => setFormData({ ...formData, code: e.target.value })}
-                    className="w-full bg-black border border-[#00f3ff]/40 p-4 text-center text-2xl tracking-[15px] font-mono text-[#00f3ff] outline-none focus:border-[#00f3ff] transition-all shadow-[inset_0_0_15px_rgba(0,243,255,0.1)]"
-                    placeholder="000000"
-                  />
-                </div>
-              </div>
-            ) : (
-              <>
-                {mode === 'register' && (
-                  <div className="space-y-1 animate-in fade-in slide-in-from-right-4 duration-300">
-                    <label className="text-[10px] orbitron font-bold text-gray-500 uppercase tracking-widest">Call Sign / Name</label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.name}
-                      onChange={e => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full bg-black border border-white/20 p-3 text-sm text-white outline-none focus:border-[#ff00ff] transition-colors"
-                      placeholder="Enter identity"
-                    />
-                  </div>
-                )}
-
-                <div className="space-y-1">
-                  <label className="text-[10px] orbitron font-bold text-gray-500 uppercase tracking-widest">Identity Node (Email)</label>
-                  <input
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={e => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full bg-black border border-white/20 p-3 text-sm text-white outline-none focus:border-[#00f3ff] transition-colors font-mono"
-                    placeholder="email@example.com"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] orbitron font-bold text-gray-500 uppercase tracking-widest">Security Key (Password)</label>
-                  <input
-                    type="password"
-                    required
-                    value={formData.password}
-                    onChange={e => setFormData({ ...formData, password: e.target.value })}
-                    className="w-full bg-black border border-white/20 p-3 text-sm text-white outline-none focus:border-[#00f3ff] transition-colors"
-                    placeholder="••••••••"
-                  />
-                </div>
-              </>
-            )}
-
-            {error && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-mono flex items-center gap-2">
-                <i className="fa-solid fa-triangle-exclamation"></i>
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className={`w-full py-4 mt-2 font-black orbitron text-xs tracking-widest transition-all flex items-center justify-center gap-2 ${mode === 'login'
-                ? 'bg-[#00f3ff] text-black hover:bg-white shadow-[0_0_20px_#00f3ff]'
-                : mode === 'register' ? 'bg-[#ff00ff] text-black hover:bg-white shadow-[0_0_20px_#ff00ff]'
-                  : 'bg-white text-black hover:bg-[#00f3ff] shadow-[0_0_20px_white]'
-                } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              {loading ? (
-                <>
-                  <i className="fa-solid fa-circle-notch fa-spin"></i> INITIALIZING...
-                </>
-              ) : (
-                mode === 'login' ? 'ACCESS GATEWAY' : (mode === 'register' ? 'ONBOARD NODE' : 'VERIFY & UNLOCK')
-              )}
-            </button>
-
-            {mode === 'verify' && (
-              <button
-                type="button"
-                onClick={() => setMode('login')}
-                className="w-full text-[10px] orbitron text-gray-500 hover:text-[#00f3ff] transition-colors uppercase tracking-[0.2em] pt-2"
-              >
-                Abort Protocol
-              </button>
-            )}
-          </form>
-
-          {/* Guest Sector - Simplified */}
-          <div className="mt-8 pt-6 border-t border-white/5 flex flex-col items-center gap-3">
-            <button
-              onClick={handleGuestLogin}
-              className="text-[9px] orbitron text-gray-500 hover:text-[#00f3ff] transition-all flex items-center gap-2 uppercase tracking-[0.3em] bg-white/5 px-6 py-2 border border-white/5 hover:border-[#00f3ff]/30"
-            >
-              <i className="fa-solid fa-user-secret"></i> Guest Access
-            </button>
-          </div>
-
-          {/* Terminal Output */}
-          <div className="mt-6 bg-black p-3 rounded border border-white/5 font-mono text-[8px] text-gray-500 h-20 overflow-hidden">
-            {logs.map((log, i) => (
-              <div key={i} className="mb-1">{log}</div>
-            ))}
-          </div>
-
+          <h2 className="orbitron text-lg font-black text-white tracking-[0.2em] uppercase">Tactical Gateway</h2>
+          <p className="orbitron text-[9px] text-[#00f3ff] mt-2 opacity-50 tracking-widest font-bold uppercase">Authorized Personnel Only</p>
         </div>
+
+        {error && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/50 text-red-500 orbitron text-[10px] uppercase font-bold text-center">
+            <i className="fa-solid fa-triangle-exclamation mr-2"></i> {error}
+          </div>
+        )}
+
+        {step === AuthStep.WELCOME && (
+          <div className="space-y-4">
+            <button onClick={() => setStep(AuthStep.EMAIL_INPUT)} className="w-full bg-[#00f3ff]/5 border border-[#00f3ff]/20 text-white orbitron text-xs py-4 rounded hover:bg-[#00f3ff]/10 transition-all flex items-center justify-center gap-3">
+              <i className="fa-solid fa-envelope"></i> Continue with Email
+            </button>
+            <div className="flex items-center gap-4 py-2 opacity-20"><div className="flex-1 h-[1px] bg-[#00f3ff]"></div><span className="orbitron text-[8px] text-[#00f3ff]">OR</span><div className="flex-1 h-[1px] bg-[#00f3ff]"></div></div>
+            <button className="w-full bg-white/5 border border-white/10 text-white orbitron text-xs py-4 rounded hover:bg-white/10 transition-all flex items-center justify-center gap-3">
+              <i className="fa-brands fa-google text-red-500"></i> Continue with Google
+            </button>
+          </div>
+        )}
+
+        {step === AuthStep.EMAIL_INPUT && (
+          <form onSubmit={checkEmail}>
+            <p className="orbitron text-[9px] text-[#00f3ff] mb-4 uppercase tracking-widest font-bold">Identity Node (Email)</p>
+            <TacticalInput value={email} onChange={setEmail} placeholder="ENTER_EMAIL_ADDRESS" autoFocus />
+            <TacticalButton type="submit" loading={isLoading}>ACCESS_NODE &rarr;</TacticalButton>
+            <button type="button" onClick={() => setStep(AuthStep.WELCOME)} className="w-full text-center orbitron text-[8px] text-[#00f3ff]/50 hover:text-[#00f3ff] mt-6 transition-all">&larr; ABORT_OPERATION</button>
+          </form>
+        )}
+
+        {step === AuthStep.PASSWORD_LOGIN && (
+          <div>
+            <p className="orbitron text-[9px] text-[#00f3ff] mb-4 uppercase tracking-widest font-bold">NODE: {email}</p>
+            <TacticalInput type="password" value={password} onChange={setPassword} placeholder="SECURITY_KEY" autoFocus />
+            <TacticalButton onClick={() => handleAuth(false)} loading={isLoading}>DECRYPT_ACCESS</TacticalButton>
+            <button type="button" onClick={() => setStep(AuthStep.EMAIL_INPUT)} className="w-full text-center orbitron text-[8px] text-[#00f3ff]/50 mt-6">&larr; SWITCH_NODE</button>
+          </div>
+        )}
+
+        {step === AuthStep.PASSWORD_SIGNUP && (
+          <div>
+            <p className="orbitron text-[9px] text-[#00f3ff] mb-4 uppercase tracking-widest font-bold">INITIATING_ACCOUNT: {email}</p>
+            <TacticalInput type="password" value={password} onChange={setPassword} placeholder="CREATE_STRONG_KEY" autoFocus />
+            <TacticalButton onClick={() => handleAuth(true)} loading={isLoading}>ESTABLISH_SESSION</TacticalButton>
+            <button type="button" onClick={() => setStep(AuthStep.EMAIL_INPUT)} className="w-full text-center orbitron text-[8px] text-[#00f3ff]/50 mt-6">&larr; REVERSE_ENROLL</button>
+          </div>
+        )}
+
+        {step === AuthStep.OTP_VERIFY && (
+          <div className="text-center">
+            <p className="orbitron text-[10px] text-white mb-2 uppercase tracking-widest">VERIFICATION_CODE_SENT</p>
+            <p className="orbitron text-[8px] text-[#00f3ff]/60 mb-8 lowercase tracking-widest">check {email}</p>
+            <div className="flex justify-between gap-2 mb-8">
+              {otp.map((digit, i) => (
+                <input
+                  key={i}
+                  ref={el => otpRefs.current[i] = el}
+                  type="text"
+                  maxLength={1}
+                  value={digit}
+                  onChange={e => handleOtpChange(i, e.target.value)}
+                  className="w-12 h-14 bg-black border border-[#00f3ff]/30 text-[#00f3ff] text-center orbitron text-xl font-black focus:border-[#00f3ff] outline-none rounded shadow-[0_0_10px_rgba(0,243,255,0.1)]"
+                />
+              ))}
+            </div>
+            <TacticalButton onClick={() => verifyOtp(otp.join(''))} loading={isLoading}>VERIFY_IDENTITY</TacticalButton>
+            <button className="orbitron text-[8px] text-[#00f3ff]/50 mt-8 hover:underline">RESEND_ENCRYPTION_CODE</button>
+          </div>
+        )}
+
       </div>
     </div>
   );

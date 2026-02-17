@@ -23,6 +23,40 @@ const pool = new Pool({
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
+// --- Database Initialization ---
+const initDB = async () => {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                otp TEXT,
+                verified BOOLEAN DEFAULT FALSE,
+                provider TEXT DEFAULT 'local',
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS chats (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id),
+                title TEXT,
+                updated_at TIMESTAMP DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS messages (
+                id SERIAL PRIMARY KEY,
+                chat_id INTEGER REFERENCES chats(id),
+                role TEXT,
+                content TEXT,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+        `);
+        console.log("✅ [DB] Global Schema Synchronized");
+    } catch (err) {
+        console.error("❌ [DB] Init Failed:", err.message);
+    }
+};
+initDB();
+
 // --- Brevo Email Helper ---
 const sendEmail = async (email, subject, htmlContent) => {
     if (!process.env.BREVO_API_KEY) return;
@@ -152,6 +186,27 @@ app.post('/api/auth/google', async (req, res) => {
 
     const appToken = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
     res.json({ user, token: appToken });
+});
+
+// Verify OTP
+app.post('/api/auth/verify', async (req, res) => {
+    try {
+        const { email, code } = req.body;
+        const result = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase().trim()]);
+        const user = result.rows[0];
+
+        if (!user || user.otp !== code) {
+            return res.status(401).json({ error: 'Invalid verification code' });
+        }
+
+        // Update User as Verified
+        await pool.query('UPDATE users SET verified = TRUE, otp = NULL WHERE id = $1', [user.id]);
+
+        const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
+        res.json({ user: { id: user.id, email: user.email }, token });
+    } catch (err) {
+        res.status(500).json({ error: 'Verification failed' });
+    }
 });
 
 // --- 2. CHAT HISTORY ROUTES ---
