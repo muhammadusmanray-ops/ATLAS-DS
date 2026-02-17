@@ -1,4 +1,6 @@
 import express from 'express';
+import * as Sentry from "@sentry/node";
+import { nodeProfilingIntegration } from "@sentry/profiling-node";
 import pg from 'pg';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -9,8 +11,21 @@ import { queryDatabase } from './db-connector.js';
 
 dotenv.config();
 
-const { Pool } = pg;
 const app = express();
+
+Sentry.init({
+    dsn: "https://240555324e113adb1068abdfc47936a0@o4508388573962240.ingest.de.sentry.io/4508388543721536",
+    integrations: [
+        nodeProfilingIntegration(),
+    ],
+    // Performance Monitoring
+    tracesSampleRate: 1.0, //  Capture 100% of the transactions
+});
+
+// The request handler must be the first middleware on the app
+app.use(Sentry.Handlers.requestHandler());
+// TracingHandler creates a trace for every incoming request
+app.use(Sentry.Handlers.tracingHandler());
 
 app.use(express.json());
 app.use(cors());
@@ -317,5 +332,8 @@ app.post('/api/db/query', async (req, res) => {
         res.status(500).json({ success: false, error: err.message });
     }
 });
+
+// The error handler must be before any other error middleware and after all controllers
+app.use(Sentry.Handlers.errorHandler());
 
 export default app;
