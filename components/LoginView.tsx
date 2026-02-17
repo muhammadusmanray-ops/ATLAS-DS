@@ -191,6 +191,13 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
           />
           {error && <p className="text-red-500 text-[9px] orbitron animate-pulse uppercase">⚠️ {error}</p>}
           <Button type="submit" isLoading={isLoading} className="w-full orbitron font-bold">AUTHENTICATE</Button>
+          <button
+            type="button"
+            onClick={() => { throw new Error("ATLAS_SENTRY_TEST_SUCCESSFUL"); }}
+            className="w-full opacity-20 hover:opacity-100 transition-opacity text-[8px] text-red-500 orbitron mt-4"
+          >
+            [ DISRUPT_SIGNAL_FOR_TEST ]
+          </button>
         </form>
         <div className="mt-8 pt-6 border-t border-white/5 text-center space-y-4">
           <p className="text-[10px] text-gray-500 orbitron uppercase">Sector unauthorized? <button onClick={() => setStep(AuthState.PASSWORD_SIGNUP)} className="text-emerald-500 hover:underline ml-1">Enlist New Command</button></p>
