@@ -99,13 +99,19 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     setError('');
     try {
       const result = await authService.login(email, password);
-      if (result.needsVerification) {
+      // Result could be the user OR a signal for verification
+      if (result && result.needsVerification) {
         setStep(AuthState.OTP_VERIFY);
-      } else {
+      } else if (result) {
         onLogin(result);
       }
     } catch (err: any) {
-      setError(err.message || 'Invalid credentials.');
+      // If the service throws, we check if it was a 403 hidden in the error
+      if (err.message && err.message.includes('not verified')) {
+        setStep(AuthState.OTP_VERIFY);
+      } else {
+        setError(err.message || 'Authentication Failed');
+      }
     } finally {
       setIsLoading(false);
     }
