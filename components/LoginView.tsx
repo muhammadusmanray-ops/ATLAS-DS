@@ -160,64 +160,34 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     );
   }
 
-  if (step === AuthState.WELCOME) {
-    return (
-      <AuthLayout>
-        <div className="text-center space-y-6">
-          <h1 className="text-2xl font-bold text-white mb-2">Welcome back</h1>
-          <div className="space-y-4">
-            <div className="relative">
-              <input
-                type="email"
-                placeholder="Email address"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-500 outline-none focus:border-emerald-500 transition-all cursor-pointer"
-                onClick={() => setStep(AuthState.EMAIL_INPUT)}
-                readOnly
-              />
-              <button
-                className="absolute right-2 top-1/2 -translate-y-1/2 bg-emerald-600 p-1.5 rounded-md text-white hover:bg-emerald-500 transition-colors"
-                onClick={() => setStep(AuthState.EMAIL_INPUT)}
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                </svg>
-              </button>
-            </div>
-            <Divider />
-            <div className="w-full flex justify-center">
-              <div id="googleSignInDiv" className="w-full h-[44px]"></div>
-            </div>
-          </div>
-          <div className="flex items-center justify-center gap-2 text-sm text-slate-400 mt-4">
-            Don't have an account?
-            <button onClick={() => setStep(AuthState.EMAIL_INPUT)} className="text-emerald-500 hover:underline">Sign up</button>
-          </div>
-        </div>
-      </AuthLayout>
-    );
-  }
-
-  if (step === AuthState.EMAIL_INPUT) {
+  if (step === AuthState.WELCOME || step === AuthState.EMAIL_INPUT) {
     return (
       <AuthLayout>
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-white">Get started</h1>
+          <h1 className="text-2xl font-bold text-white orbitron tracking-widest uppercase">Commander Login</h1>
+          <p className="text-slate-400 text-[10px] orbitron opacity-50 uppercase mt-2">Neural Identity Link required</p>
         </div>
-        <form onSubmit={handleEmailSubmit} className="space-y-4">
+        <form onSubmit={handleLoginSubmit} className="space-y-4">
           <Input
             type="email"
-            placeholder="Email address"
+            placeholder="CORP_EMAIL@SECTOR.COM"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoFocus
-            error={error}
+            icon={<i className="fa-solid fa-envelope"></i>}
           />
-          <Button type="submit" isLoading={isLoading} className="w-full">Continue</Button>
+          <Input
+            type="password"
+            placeholder="ACCESS_PASSWORD"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            icon={<i className="fa-solid fa-lock"></i>}
+          />
+          {error && <p className="text-red-500 text-[9px] orbitron animate-pulse uppercase">⚠️ {error}</p>}
+          <Button type="submit" isLoading={isLoading} className="w-full orbitron font-bold">AUTHENTICATE</Button>
         </form>
-        <div className="mt-4 text-center">
-          <span className="text-sm text-slate-400">
-            Already have an account? <button onClick={() => setStep(AuthState.WELCOME)} className="text-emerald-500 hover:underline">Log in</button>
-          </span>
+        <div className="mt-8 pt-6 border-t border-white/5 text-center space-y-4">
+          <p className="text-[10px] text-gray-500 orbitron uppercase">Sector unauthorized? <button onClick={() => setStep(AuthState.PASSWORD_SIGNUP)} className="text-emerald-500 hover:underline ml-1">Enlist New Command</button></p>
         </div>
       </AuthLayout>
     );
