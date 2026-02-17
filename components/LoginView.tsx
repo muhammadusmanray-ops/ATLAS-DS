@@ -199,67 +199,35 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     );
   }
 
-  if (step === AuthState.PASSWORD_LOGIN) {
-    return (
-      <AuthLayout>
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-white">Enter your password</h1>
-          <div className="mt-2 flex items-center justify-center gap-2">
-            <span className="text-sm text-slate-400 px-3 py-1 bg-slate-800 rounded-full border border-slate-700">
-              {email}
-            </span>
-            <button onClick={() => { setStep(AuthState.EMAIL_INPUT); setPassword(''); setError(''); }} className="text-xs text-emerald-500 hover:underline">Edit</button>
-          </div>
-        </div>
-        <form onSubmit={handleLoginSubmit} className="space-y-4">
-          <Input
-            type="password"
-            placeholder="Password"
-            label="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoFocus
-            error={error}
-          />
-          <div className="flex justify-end">
-            <button type="button" className="text-sm text-emerald-500 hover:underline">Forgot password?</button>
-          </div>
-          <Button type="submit" isLoading={isLoading} className="w-full">Log in</Button>
-        </form>
-        <div className="mt-6 text-center">
-          <button onClick={() => setStep(AuthState.WELCOME)} className="text-sm text-slate-500 hover:text-slate-300">
-            &larr; Back to start
-          </button>
-        </div>
-      </AuthLayout>
-    );
-  }
-
   if (step === AuthState.PASSWORD_SIGNUP) {
     return (
       <AuthLayout>
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-white">Create your account</h1>
-          <p className="text-slate-400 text-sm mt-2">
-            Welcome! Please create a password for <br /><span className="text-slate-200">{email}</span>
-          </p>
+          <h1 className="text-2xl font-bold text-white orbitron tracking-widest uppercase">Enlist Commander</h1>
+          <p className="text-slate-400 text-[10px] orbitron opacity-50 uppercase mt-2">Create new identity for <span className="text-emerald-500">{email || 'SECTOR'}</span></p>
         </div>
         <form onSubmit={handleSignupSubmit} className="space-y-4">
+          {!email && (
+            <Input
+              type="email"
+              placeholder="YOUR_NEW_EMAIL@SECTOR.COM"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              icon={<i className="fa-solid fa-envelope"></i>}
+            />
+          )}
           <Input
             type="password"
-            placeholder="At least 8 characters"
-            label="Password"
+            placeholder="CREATE_ACCESS_PASSWORD (8+ chars)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            autoFocus
-            error={error}
+            icon={<i className="fa-solid fa-lock text-emerald-500"></i>}
           />
-          <Button type="submit" isLoading={isLoading} className="w-full">Continue</Button>
+          {error && <p className="text-red-500 text-[9px] orbitron animate-pulse uppercase">⚠️ {error}</p>}
+          <Button type="submit" isLoading={isLoading} className="w-full orbitron font-bold shadow-lg shadow-emerald-500/20">CONFIRM ENLISTMENT</Button>
         </form>
-        <div className="mt-6 text-center">
-          <button onClick={() => setStep(AuthState.EMAIL_INPUT)} className="text-sm text-slate-500 hover:text-slate-300">
-            &larr; Use a different email
-          </button>
+        <div className="mt-8 pt-6 border-t border-white/5 text-center space-y-4">
+          <p className="text-[10px] text-gray-500 orbitron uppercase">Already Enlisted? <button onClick={() => setStep(AuthState.WELCOME)} className="text-emerald-500 hover:underline ml-1">Re-Authenticate</button></p>
         </div>
       </AuthLayout>
     );
