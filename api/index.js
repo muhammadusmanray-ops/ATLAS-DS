@@ -265,19 +265,31 @@ app.post('/api/auth/google', async (req, res) => {
 app.post('/api/auth/verify', async (req, res) => {
     try {
         const { email, code } = req.body;
-        const result = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase().trim()]);
-        const user = result.rows[0];
+        const safeEmail = email.toLowerCase().trim();
+
+        const users = await getUsersCollection();
+        const user = await users.findOne({ email: safeEmail });
 
         if (!user || user.otp !== code) {
             return res.status(401).json({ error: 'Invalid verification code' });
         }
 
-        await pool.query('UPDATE users SET verified = TRUE, otp = NULL WHERE id = $1', [user.id]);
-        const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET);
-        res.json({ user: { id: user.id, email: user.email }, token });
+        // Finalize verification in MongoDB
+        await users.updateOne(
+            { email: safeEmail },
+            { $set: { verified: true, otp: null } }
+        );
+
+        const token = jwt.sign({ id: user._id.toString(), email: user.email }, JWT_SECRET);
+        console.log("✅ [MONGO_AUTH] Verify Success:", safeEmail);
+        res.json({
+            success: true,
+            user: { id: user._id.toString(), email: user.email },
+            token
+        });
     } catch (err) {
-        console.error("❌ [AUTH] Verify Error:", err.message);
-        res.status(500).json({ error: 'Verification failed' });
+        console.error("❌ [MONGO_AUTH] Verify Crash:", err.message);
+        res.status(500).json({ error: 'VERIFICATION_DISRUPTION' });
     }
 });
 
