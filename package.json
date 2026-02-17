@@ -20,13 +20,15 @@
     "cors": "^2.8.6",
     "dotenv": "^17.2.4",
     "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.424.0",
     "mysql2": "^3.17.1",
     "nodemailer": "^8.0.1",
     "pg": "^8.18.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "resend": "^6.9.2"
+    "resend": "^6.9.2",
+    "undici": "^7.22.0"
   },
   "devDependencies": {
     "@capacitor/android": "^8.1.0",

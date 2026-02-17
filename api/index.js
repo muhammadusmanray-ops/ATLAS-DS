@@ -1,11 +1,17 @@
-const express = require('express');
-const { Pool } = require('pg');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const cors = require('cors');
-require('dotenv').config();
+import express from 'express';
+import pg from 'pg';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { fetch } from 'undici'; // Use native fetch if Node 18+, else undici or node-fetch but implicit global fetch is better if available. Node 18+ has global fetch.
 
+// Load env variables
+dotenv.config();
+
+const { Pool } = pg;
 const app = express();
+
 app.use(express.json());
 app.use(cors());
 
@@ -21,6 +27,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 const sendEmail = async (email, subject, htmlContent) => {
     if (!process.env.BREVO_API_KEY) return;
     try {
+        // Node 18+ has native fetch. If on Vercel Node 18+, this works.
         await fetch("https://api.brevo.com/v3/smtp/email", {
             method: "POST",
             headers: {
@@ -213,4 +220,4 @@ app.get('/api/auth/me', authenticate, (req, res) => {
     res.json({ id: req.user.id, email: req.user.email });
 });
 
-module.exports = app;
+export default app;
