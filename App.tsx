@@ -210,7 +210,7 @@ const App: React.FC = () => {
   if (!isAuthenticated) return <Suspense fallback={null}><LoginView onLogin={handleLogin} /></Suspense>;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#020203] text-gray-100 selection:bg-[#76b900] selection:text-black font-sans">
+    <div className="h-screen w-screen flex bg-[#020203] text-gray-100 selection:bg-[#76b900] selection:text-black font-sans overflow-hidden">
       <Sidebar
         isOpen={isSidebarOpen}
         toggleOpen={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -257,7 +257,7 @@ const App: React.FC = () => {
         </header>
 
         <div className="flex-1 overflow-y-auto relative z-10 w-full custom-scrollbar">
-          <Suspense fallback={<div className="h-full flex items-center justify-center flex-col gap-4">
+          <Suspense fallback={<div className="h-full flex items-center justify-center flex-col gap-4 py-20">
             <i className="fa-solid fa-ghost fa-spin text-5xl text-[#76b900]"></i>
             <p className="orbitron text-xs text-[#76b900] animate-pulse tracking-widest font-black uppercase">Synchronizing Sector...</p>
           </div>}>
@@ -279,8 +279,8 @@ const App: React.FC = () => {
             {currentView === AppView.DEVOPS && <DevOpsHub />}
             {currentView === AppView.DEEP_RESEARCH && <DeepResearch />}
           </Suspense>
+          <TacticalAssistant currentView={currentView} />
         </div>
-        <TacticalAssistant currentView={currentView} />
       </main>
     </div>
   );

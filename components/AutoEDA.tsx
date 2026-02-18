@@ -62,8 +62,8 @@ const VisualHUD: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col p-6 overflow-y-auto bg-[#020203]">
-      <div className="max-w-7xl mx-auto w-full space-y-8">
+    <div className="flex flex-col p-6 md:p-12 bg-[#020203]">
+      <div className="w-full space-y-8">
         {/* Header with Nvidia vibe */}
         <div className="flex items-center justify-between border-b border-white/5 pb-8">
           <div className="flex items-center gap-6">
@@ -111,8 +111,8 @@ const VisualHUD: React.FC = () => {
                   onClick={handleAnalyze}
                   disabled={isAnalyzing || !dataInput.trim()}
                   className={`w-full py-5 rounded-2xl orbitron font-black text-xs tracking-[0.3em] flex items-center justify-center gap-4 transition-all ${isAnalyzing
-                      ? 'bg-gray-800 text-gray-500 cursor-wait'
-                      : 'bg-green-600 text-black font-black hover:bg-green-500 hover:scale-[1.02] active:scale-95 shadow-[0_0_40px_rgba(118,185,0,0.3)]'
+                    ? 'bg-gray-800 text-gray-500 cursor-wait'
+                    : 'bg-green-600 text-black font-black hover:bg-green-500 hover:scale-[1.02] active:scale-95 shadow-[0_0_40px_rgba(118,185,0,0.3)]'
                     }`}
                 >
                   {isAnalyzing ? <i className="fa-solid fa-atom fa-spin"></i> : <i className="fa-solid fa-bolt-lightning"></i>}

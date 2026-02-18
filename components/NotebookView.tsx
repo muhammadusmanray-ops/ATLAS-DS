@@ -236,7 +236,7 @@ const NotebookView: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#050508] text-gray-300 font-mono text-sm overflow-hidden relative">
+    <div className="flex flex-col bg-[#050508] text-gray-300 font-mono text-sm relative md:p-12">
       <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={{ backgroundImage: 'linear-gradient(#76b900 1px, transparent 1px), linear-gradient(90deg, #76b900 1px, transparent 1px)', backgroundSize: '60px 60px' }}></div>
 
       {/* TOP HEADER / TOOLBAR */}
