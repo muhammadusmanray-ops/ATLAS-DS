@@ -41,7 +41,6 @@ class LLMAdapter {
     private async init() {
         await this.loadConfig();
         this.isInitialized = true;
-        console.log("🛠️ Dual Cluster Shield: ACTIVE. Commander Node Synchronized.");
     }
 
     public static getInstance(): LLMAdapter {
