@@ -1,58 +1,74 @@
 import { User } from '../types';
-
-const API_URL = '/api/auth';
+import { supabase } from './supabase';
 
 export const authService = {
     // Get currently logged in user
     getCurrentUser: async (): Promise<User | null> => {
         try {
-            const token = localStorage.getItem('auth_token');
-            if (!token) return null;
+            const { data: { user }, error } = await supabase.auth.getUser();
+            if (error || !user) return null;
 
-            const res = await fetch(`${API_URL}/me`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (!res.ok) {
-                localStorage.removeItem('auth_token');
-                return null;
-            }
-
-            return await res.json();
+            return {
+                id: user.id,
+                email: user.email || '',
+                name: user.user_metadata?.name || user.email?.split('@')[0],
+                avatar: user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`,
+                rank: user.user_metadata?.rank || 'Commander',
+                verified: !!user.email_confirmed_at,
+                provider: 'email'
+            };
         } catch {
             return null;
         }
     },
 
-    // Register a new user
+    // Register a new user (with Email Confirmation)
     register: async (email: string, password: string): Promise<User> => {
-        const res = await fetch(`${API_URL}/register`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
+        const { data, error } = await supabase.auth.signUp({
+            email: email.toLowerCase().trim(),
+            password,
+            options: {
+                data: {
+                    name: email.split('@')[0],
+                    rank: 'Commander'
+                }
+            }
         });
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Registration failed');
-        return data.user;
+        if (error) throw new Error(error.message);
+        if (!data.user) throw new Error('Registration failed');
+
+        return {
+            id: data.user.id,
+            email: data.user.email || '',
+            name: data.user.user_metadata?.name,
+            verified: !!data.user.email_confirmed_at,
+            provider: 'email'
+        };
     },
 
     // Login with email and password
     login: async (email: string, password: string): Promise<User> => {
-        const res = await fetch(`${API_URL}/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email: email.toLowerCase().trim(),
+            password
         });
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Login failed');
+        if (error) throw new Error(error.message);
+        if (!data.user) throw new Error('Login failed');
 
-        if (data.token) localStorage.setItem('auth_token', data.token);
-        return data.user;
+        return {
+            id: data.user.id,
+            email: data.user.email || '',
+            name: data.user.user_metadata?.name,
+            avatar: data.user.user_metadata?.avatar_url,
+            rank: data.user.user_metadata?.rank,
+            verified: !!data.user.email_confirmed_at,
+            provider: 'email'
+        };
     },
 
-    logout: () => {
-        localStorage.removeItem('auth_token');
+    logout: async () => {
+        await supabase.auth.signOut();
     }
 };

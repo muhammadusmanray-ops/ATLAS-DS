@@ -15,6 +15,7 @@
     "@google/genai": "^1.41.0",
     "@huggingface/transformers": "^3.8.1",
     "@sendinblue/client": "^3.3.1",
+    "@supabase/supabase-js": "^2.96.0",
     "axios": "^1.13.5",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
