@@ -28,8 +28,18 @@ const DeepResearch = lazy(() => import('./components/DeepResearch'));
 const LoginView = lazy(() => import('./components/LoginView'));
 
 const App: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  // PURE INTERFACE MODE: Auth Bypassed by default
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [user, setUser] = useState<User | null>({
+    id: 'GUEST_COMMANDER',
+    name: 'COMMANDER_USMAN',
+    email: 'atlas.commander@sector.local',
+    rank: 'Commander',
+    verified: true,
+    provider: 'local',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Usman'
+  });
+
   const [isLoading, setIsLoading] = useState(true);
   const [currentView, setCurrentView] = useState<AppView>(AppView.DASHBOARD);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -89,27 +99,15 @@ const App: React.FC = () => {
     const initSystem = async () => {
       try {
         await db.init();
-        const token = localStorage.getItem('ATLAS_TOKEN');
-        if (token) {
-          // Validate with Backend
-          const res = await fetch('/api/auth/me', {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-
-          if (res.ok) {
-            const userData = await res.json();
-            setUser(userData);
-            setIsAuthenticated(true);
-          } else {
-            // Token invalid or expired
-            localStorage.removeItem('ATLAS_TOKEN');
-            setIsAuthenticated(false);
-          }
+        // Interface-Only Mode: Load user data from local storage if specifically saved, else use mock
+        const savedUser = localStorage.getItem('ATLAS_USER_SESSION');
+        if (savedUser) {
+          setUser(JSON.parse(savedUser));
         }
       } catch (e) {
         console.error("DIAGNOSTIC_INTERRUPT:", e);
       } finally {
-        setTimeout(() => setIsLoading(false), 1000); // Small delay for aesthetic
+        setTimeout(() => setIsLoading(false), 800);
       }
     };
     initSystem();
@@ -158,31 +156,10 @@ const App: React.FC = () => {
     }
   }, [messages, currentSessionId]);
 
-  useEffect(() => {
-    const autoTitle = async () => {
-      if (messages.length === 2 && currentSessionId) {
-        const currentSession = sessions.find(s => s.id === currentSessionId);
-        if (currentSession && currentSession.title.startsWith('Mission ')) {
-          try {
-            const userMsg = messages[0].content;
-            const response = await llmAdapter.chat(userMsg, 'Generate a very short 3-5 word title for this conversation. No quotes.', []);
-            if (response && response.text) {
-              const newTitle = response.text.replace(/"/g, '').trim();
-              await db.createSession(currentSessionId, currentSession.moduleId, newTitle, user?.id);
-              setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, title: newTitle } : s));
-            }
-          } catch (e) { console.warn('Auto-Title Failed', e); }
-        }
-      }
-    };
-    autoTitle();
-  }, [messages, currentSessionId, sessions, user]);
-
-  const handleLogin = async (authenticatedUser: User) => {
+  const handleLogin = (authenticatedUser: User) => {
     setUser(authenticatedUser);
     setIsAuthenticated(true);
     localStorage.setItem('ATLAS_USER_SESSION', JSON.stringify(authenticatedUser));
-    await db.saveUser(authenticatedUser);
   };
 
   const handleUpdateUser = async (updatedUser: User) => {
