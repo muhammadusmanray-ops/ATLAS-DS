@@ -226,37 +226,37 @@ const App: React.FC = () => {
         onRenameSession={handleRenameSession}
       />
 
-      <main className="flex-1 flex flex-col relative transition-all duration-300 ease-in-out overflow-hidden min-w-0">
+      <main className={`flex-1 flex flex-col relative transition-all duration-300 ease-in-out min-w-0 ${isSidebarOpen ? 'md:ml-80' : 'md:ml-20'}`}>
         {/* Mobile Sidebar Overlay Shift */}
         {isSidebarOpen && (
           <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setIsSidebarOpen(false)}></div>
         )}
 
         {/* Global HUD Header */}
-        <header className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-[#050508]/80 backdrop-blur-md z-30 shrink-0">
+        <header className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-[#050508]/80 backdrop-blur-md z-30 shrink-0 sticky top-0">
           <div className="flex items-center gap-4">
             <div className="flex flex-col">
-              <span className="text-[10px] orbitron font-black text-white/40 tracking-[0.5em] uppercase">Sector</span>
-              <span className="text-xs orbitron font-black text-white tracking-widest uppercase">{currentView.replace('_', ' ')}</span>
+              <span className="text-[12px] orbitron font-black text-white/40 tracking-[0.5em] uppercase leading-none">Sector</span>
+              <span className="text-sm orbitron font-black text-white tracking-widest uppercase mt-1">{currentView.replace('_', ' ')}</span>
             </div>
           </div>
           <div className="flex items-center gap-6">
-            <button onClick={() => setCurrentView(AppView.SETTINGS)} className="text-[10px] orbitron font-black text-gray-500 hover:text-white transition-all flex items-center gap-2 group">
+            <button onClick={() => setCurrentView(AppView.SETTINGS)} className="text-xs orbitron font-black text-gray-400 hover:text-[#76b900] transition-all flex items-center gap-2 group">
               <i className="fa-solid fa-gear group-hover:rotate-90 transition-transform"></i> SETTINGS
             </button>
             {user && (
               <div className="flex items-center gap-3 pl-6 border-l border-white/10">
                 <div className="text-right hidden sm:block">
-                  <p className="text-[9px] orbitron font-black text-white leading-none uppercase">{user.name}</p>
-                  <p className="text-[7px] orbitron text-[#76b900] font-bold mt-1 tracking-widest uppercase">{user.rank}</p>
+                  <p className="text-[11px] orbitron font-black text-white leading-none uppercase">{user.name}</p>
+                  <p className="text-[8px] orbitron text-[#76b900] font-bold mt-1 tracking-widest uppercase">{user.rank}</p>
                 </div>
-                <img src={user.avatar} className="w-8 h-8 rounded-lg border border-white/10" alt="Commander" />
+                <img src={user.avatar} className="w-9 h-9 rounded-xl border border-white/10 shadow-lg" alt="Commander" />
               </div>
             )}
           </div>
         </header>
 
-        <div className="flex-1 overflow-hidden relative z-10 w-full">
+        <div className="flex-1 overflow-y-auto relative z-10 w-full custom-scrollbar">
           <Suspense fallback={<div className="h-full flex items-center justify-center flex-col gap-4">
             <i className="fa-solid fa-ghost fa-spin text-5xl text-[#76b900]"></i>
             <p className="orbitron text-xs text-[#76b900] animate-pulse tracking-widest font-black uppercase">Synchronizing Sector...</p>
