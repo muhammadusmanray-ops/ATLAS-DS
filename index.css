@@ -11,17 +11,18 @@
   }
 
   body {
-    @apply bg-black text-gray-100 overflow-hidden m-0;
-    font-family: 'Inter', sans-serif;
+    @apply bg-black text-gray-100 overflow-hidden m-0 antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 16px;
   }
 }
 
 @layer components {
-  .orbitron { font-family: 'Orbitron', sans-serif; }
+  .orbitron { font-family: 'Orbitron', sans-serif; letter-spacing: 0.05em; }
   .mono { font-family: 'JetBrains Mono', monospace; }
 
   .cyber-panel {
-    @apply bg-[var(--panel-bg)] border border-[rgba(0,243,255,0.15)] backdrop-blur-[15px] shadow-[0_0_30px_rgba(0,0,0,0.5)];
+    @apply bg-[var(--panel-bg)] border border-[rgba(0,243,255,0.15)] backdrop-blur-[20px] shadow-[0_0_40px_rgba(0,0,0,0.6)];
   }
 
   .custom-scrollbar {
