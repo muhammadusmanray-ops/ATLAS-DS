@@ -196,6 +196,15 @@ const App: React.FC = () => {
     if (currentSessionId) await db.saveChatHistory(currentSessionId, resetMsg);
   };
 
+  const handleViewChange = (view: AppView) => {
+    setCurrentView(view);
+    if (window.innerWidth < 768) setIsSidebarOpen(false);
+  };
+
+  const handleNewSession = () => {
+    createNewSession(currentView);
+  };
+
   if (isLoading) return <div className="h-screen bg-black flex items-center justify-center text-[#76b900] orbitron text-xs tracking-widest">INITIALIZING_SYSTEM...</div>;
 
   if (!isAuthenticated) return <Suspense fallback={null}><LoginView onLogin={handleLogin} /></Suspense>;
@@ -203,53 +212,54 @@ const App: React.FC = () => {
   return (
     <div className="flex h-screen overflow-hidden bg-[#020203] text-gray-100 selection:bg-[#76b900] selection:text-black font-sans">
       <Sidebar
-        currentView={currentView}
-        onViewChange={setCurrentView}
         isOpen={isSidebarOpen}
         toggleOpen={() => setIsSidebarOpen(!isSidebarOpen)}
+        currentView={currentView}
+        onViewChange={handleViewChange}
         user={user}
         onLogout={handleLogout}
         sessions={sessions}
         currentSessionId={currentSessionId}
         onSelectSession={handleSelectSession}
-        onNewSession={() => createNewSession(currentView)}
+        onNewSession={handleNewSession}
         onDeleteSession={handleDeleteSession}
         onRenameSession={handleRenameSession}
       />
 
-      <main className={`flex-1 flex flex-col relative transition-all duration-500 overflow-hidden ml-0 ${isSidebarOpen ? 'md:ml-80' : 'md:ml-20'}`}>
-        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#76b900 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#76b900]/5 blur-[150px] pointer-events-none rounded-full"></div>
+      <main className={`flex-1 flex flex-col relative transition-all duration-300 ease-in-out overflow-hidden ${isSidebarOpen ? 'md:pl-80' : 'md:pl-20'}`}>
+        {/* Mobile Sidebar Overlay Shift */}
+        {isSidebarOpen && (
+          <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setIsSidebarOpen(false)}></div>
+        )}
 
-        <header className="h-16 border-b border-white/5 bg-black/40 flex items-center justify-between px-8 z-40 backdrop-blur-2xl">
-          <div className="flex items-center gap-8">
-            <div className="flex items-center gap-3">
-              <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:hidden p-2 text-[#76b900] hover:bg-white/10 rounded-lg"><i className="fa-solid fa-bars"></i></button>
-              <div className="w-2.5 h-2.5 rounded-full bg-[#76b900] shadow-[0_0_10px_#76b900] animate-pulse"></div>
-              <span className="orbitron text-[9px] font-black text-[#76b900] uppercase tracking-[0.4em]">Combat Hub</span>
+        {/* Global HUD Header */}
+        <header className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-[#050508]/80 backdrop-blur-md z-30 shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="flex flex-col">
+              <span className="text-[10px] orbitron font-black text-white/40 tracking-[0.5em] uppercase">Sector</span>
+              <span className="text-xs orbitron font-black text-white tracking-widest uppercase">{currentView.replace('_', ' ')}</span>
             </div>
           </div>
-
           <div className="flex items-center gap-6">
-            <h1 className="orbitron text-xs font-black tracking-[0.3em] text-white uppercase flex items-center gap-3">
-              <i className="fa-solid fa-shield-halved text-[#76b900]"></i>
-              {currentView.replace('_', ' ')}
-            </h1>
-            <div className="h-6 w-[1px] bg-white/10"></div>
-            <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-xl border border-white/5 cursor-pointer hover:bg-white/10 transition-all" onClick={() => setCurrentView(AppView.SETTINGS)}>
-              <div className="flex flex-col items-end">
-                <span className="text-[9px] orbitron font-black text-white">{user?.name}</span>
-                <span className="text-[7px] orbitron text-[#76b900] tracking-widest uppercase italic font-bold">Lvl 99-Elite</span>
+            <button onClick={() => setCurrentView(AppView.SETTINGS)} className="text-[10px] orbitron font-black text-gray-500 hover:text-white transition-all flex items-center gap-2 group">
+              <i className="fa-solid fa-gear group-hover:rotate-90 transition-transform"></i> SETTINGS
+            </button>
+            {user && (
+              <div className="flex items-center gap-3 pl-6 border-l border-white/10">
+                <div className="text-right hidden sm:block">
+                  <p className="text-[9px] orbitron font-black text-white leading-none uppercase">{user.name}</p>
+                  <p className="text-[7px] orbitron text-[#76b900] font-bold mt-1 tracking-widest uppercase">{user.rank}</p>
+                </div>
+                <img src={user.avatar} className="w-8 h-8 rounded-lg border border-white/10" alt="Commander" />
               </div>
-              <img src={user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Usman'} alt="Avatar" className="w-8 h-8 rounded-lg border border-[#76b900]/20 object-cover shadow-[0_0_10px_rgba(118,185,0,0.2)]" />
-            </div>
+            )}
           </div>
         </header>
 
-        <div className="flex-1 overflow-hidden relative z-10">
+        <div className="flex-1 overflow-hidden relative z-10 w-full">
           <Suspense fallback={<div className="h-full flex items-center justify-center flex-col gap-4">
             <i className="fa-solid fa-ghost fa-spin text-5xl text-[#76b900]"></i>
-            <p className="orbitron text-[10px] text-[#76b900] animate-pulse tracking-widest font-black">SYNCHRONIZING_SECTOR...</p>
+            <p className="orbitron text-xs text-[#76b900] animate-pulse tracking-widest font-black uppercase">Synchronizing Sector...</p>
           </div>}>
             {currentView === AppView.DASHBOARD && <Dashboard onViewChange={setCurrentView} />}
             {currentView === AppView.CHAT && <ChatView messages={messages} setMessages={setMessages} />}

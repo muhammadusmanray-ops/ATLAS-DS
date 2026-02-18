@@ -135,7 +135,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdateUser, onClear
 
                             <div className="flex items-center gap-3 relative z-10">
                                 <i className="fa-solid fa-user-ninja text-[#76b900] text-xl"></i>
-                                <h3 className="text-xs font-black text-white orbitron uppercase tracking-widest">Commander ID</h3>
+                                <h3 className="text-sm font-black text-white orbitron uppercase tracking-widest">Commander ID</h3>
                             </div>
 
                             <div className="flex flex-col items-center gap-6 py-4 relative z-10">
@@ -159,17 +159,17 @@ const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdateUser, onClear
 
                             <div className="space-y-4 relative z-10">
                                 <div className="space-y-1">
-                                    <label className="text-[9px] text-gray-500 font-bold uppercase tracking-[0.3em] ml-1">Callsign</label>
+                                    <label className="text-xs text-gray-500 font-bold uppercase tracking-[0.3em] ml-1">Callsign</label>
                                     <input
                                         type="text"
                                         value={profileName}
                                         onChange={(e) => setProfileName(e.target.value)}
-                                        className="w-full p-4 bg-black/60 border border-white/5 rounded-2xl text-gray-200 text-xs outline-none focus:border-[#76b900] transition-all font-mono"
+                                        className="w-full p-4 bg-black/60 border border-white/5 rounded-2xl text-gray-200 text-sm outline-none focus:border-[#76b900] transition-all font-mono"
                                         placeholder="Enter Callsign..."
                                     />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-[9px] text-gray-500 font-bold uppercase tracking-[0.3em] ml-1">Tactical Rank</label>
+                                    <label className="text-xs text-gray-500 font-bold uppercase tracking-[0.3em] ml-1">Tactical Rank</label>
                                     <select
                                         value={profileRank}
                                         onChange={(e) => setProfileRank(e.target.value as 'Commander' | 'Lead Scientist' | 'Junior Intel')}
@@ -362,8 +362,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdateUser, onClear
                                         <i className="fa-solid fa-ghost text-[#76b900] text-xl"></i>
                                     </div>
                                     <div>
-                                        <h3 className="text-xs font-black text-white orbitron uppercase tracking-widest">Neural Cluster Selection</h3>
-                                        <p className="text-[8px] text-gray-500 font-black uppercase tracking-[0.3em] mt-1">Select Primary Intelligence Relay</p>
+                                        <h3 className="text-sm font-black text-white orbitron uppercase tracking-widest">Neural Cluster Selection</h3>
+                                        <p className="text-xs text-gray-500 font-black uppercase tracking-[0.3em] mt-1">Select Primary Intelligence Relay</p>
                                     </div>
                                 </div>
                             </div>
@@ -433,9 +433,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdateUser, onClear
                                     <div className="p-3 bg-[#76b900]/10 rounded-xl">
                                         <i className="fa-solid fa-microchip text-[#76b900]"></i>
                                     </div>
-                                    <h3 className="text-white font-black orbitron uppercase text-xs tracking-[0.2em]">Logic_Nodes (Groq)</h3>
+                                    <h3 className="text-white font-black orbitron uppercase text-sm tracking-[0.2em]">Logic_Nodes (Groq)</h3>
                                 </div>
-                                <div className="px-6 py-2 bg-[#76b900]/20 rounded-full border border-[#76b900]/20 text-[9px] font-black text-[#76b900] tracking-widest">FAILOVER: ACTIVE</div>
+                                <div className="px-6 py-2 bg-[#76b900]/20 rounded-full border border-[#76b900]/20 text-xs font-black text-[#76b900] tracking-widest">FAILOVER: ACTIVE</div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
