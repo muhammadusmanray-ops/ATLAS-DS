@@ -83,21 +83,6 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         {isOpen && (
           <div className="px-4 py-2 space-y-2 shrink-0 animate-in fade-in slide-in-from-top-2 duration-300">
-            <div className="grid grid-cols-2 gap-2 bg-white/5 p-1 rounded-xl">
-              <button
-                onClick={() => setShowHistory(false)}
-                className={`py-2 rounded-lg text-[9px] orbitron font-bold uppercase transition-all ${!showHistory ? 'bg-[#76b900] text-black shadow-lg shadow-[#76b900]/20' : 'text-gray-500 hover:text-white'}`}
-              >
-                Navigation
-              </button>
-              <button
-                onClick={() => setShowHistory(true)}
-                className={`py-2 rounded-lg text-[9px] orbitron font-bold uppercase transition-all ${showHistory ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-gray-500 hover:text-white'}`}
-              >
-                Mission Logs
-              </button>
-            </div>
-
             <button
               onClick={() => {
                 onNewSession();
@@ -114,179 +99,57 @@ const Sidebar: React.FC<SidebarProps> = ({
         )}
 
         <div className="flex-1 px-3 space-y-2 overflow-y-auto custom-scrollbar pt-4">
-          {isOpen && showHistory ? (
-            <div className="space-y-4 animate-in slide-in-from-left-4 duration-300">
-              {sessions.length === 0 ? (
-                <div className="text-center py-12 px-4">
-                  <i className="fa-solid fa-inbox text-4xl text-gray-800 mb-3"></i>
-                  <p className="text-gray-600 text-[10px] orbitron font-bold uppercase tracking-widest">No Conversations Yet</p>
-                  <p className="text-gray-700 text-[8px] mt-1">Start a new session to begin</p>
-                </div>
-              ) : (
-                (() => {
-                  // Group sessions by time
-                  const now = new Date();
-                  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                  const yesterday = new Date(today);
-                  yesterday.setDate(yesterday.getDate() - 1);
-                  const last7Days = new Date(today);
-                  last7Days.setDate(last7Days.getDate() - 7);
-                  const last30Days = new Date(today);
-                  last30Days.setDate(last30Days.getDate() - 30);
+          <nav className="space-y-2">
+            {navItems.map((item) => {
+              const isGroq = item.provider === 'groq';
+              const activeColor = isGroq ? '#76b900' : '#00f3ff';
+              const meterPercent = isGroq ? groqPercent : geminiPercent;
 
-                  const grouped = {
-                    today: [] as typeof sessions,
-                    yesterday: [] as typeof sessions,
-                    last7Days: [] as typeof sessions,
-                    last30Days: [] as typeof sessions,
-                    older: [] as typeof sessions,
-                  };
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    onViewChange(item.id);
+                    if (window.innerWidth < 768) toggleOpen();
+                  }}
+                  className={`w-full group flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all relative overflow-hidden ${currentView === item.id
+                    ? 'bg-white/5 text-white shadow-[inset_0_0_15px_rgba(255,255,255,0.02)]'
+                    : 'text-gray-500 hover:text-white hover:bg-white/5'
+                    }`}
+                >
+                  {currentView === item.id && (
+                    <div style={{ backgroundColor: activeColor }} className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full shadow-[0_0_10px_currentColor]"></div>
+                  )}
 
-                  sessions.forEach(session => {
-                    const sessionDate = new Date(session.lastUpdated);
-                    if (sessionDate >= today) {
-                      grouped.today.push(session);
-                    } else if (sessionDate >= yesterday) {
-                      grouped.yesterday.push(session);
-                    } else if (sessionDate >= last7Days) {
-                      grouped.last7Days.push(session);
-                    } else if (sessionDate >= last30Days) {
-                      grouped.last30Days.push(session);
-                    } else {
-                      grouped.older.push(session);
-                    }
-                  });
-
-                  return (
-                    <>
-                      {Object.entries(grouped).map(([key, groupSessions]) => {
-                        if (groupSessions.length === 0) return null;
-
-                        const labels: Record<string, string> = {
-                          today: 'Today',
-                          yesterday: 'Yesterday',
-                          last7Days: 'Last 7 Days',
-                          last30Days: 'Last 30 Days',
-                          older: 'Older'
-                        };
-
-                        return (
-                          <div key={key} className="space-y-1">
-                            <div className="px-2 py-1 text-[8px] orbitron text-gray-600 font-black uppercase tracking-[0.3em] sticky top-0 bg-[#050508] z-10">
-                              {labels[key]}
-                            </div>
-                            {groupSessions.map(session => (
-                              <div
-                                key={session.id}
-                                onClick={() => {
-                                  onSelectSession(session.id);
-                                  if (window.innerWidth < 768) toggleOpen();
-                                }}
-                                className={`w-full text-left p-3 rounded-xl transition-all group relative cursor-pointer border ${currentSessionId === session.id
-                                  ? 'bg-indigo-500/10 border-indigo-500/30 shadow-[0_0_20px_rgba(99,102,241,0.1)]'
-                                  : 'hover:bg-white/5 border-transparent hover:border-white/10'
-                                  }`}
-                              >
-                                <div className="flex items-start gap-3">
-                                  <div className={`mt-1.5 h-1.5 w-1.5 rounded-full shrink-0 ${currentSessionId === session.id ? 'bg-indigo-400 animate-pulse shadow-[0_0_8px_#818cf8]' : 'bg-gray-800'}`}></div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className={`text-[11px] font-bold truncate tracking-wide ${currentSessionId === session.id ? 'text-white' : 'text-gray-400 group-hover:text-gray-200'
-                                      }`}>
-                                      {session.title}
-                                    </p>
-                                    <p className="text-[9px] text-gray-600 truncate mt-0.5 orbitron tracking-tight">
-                                      {session.preview || 'No transmission data...'}
-                                    </p>
-                                  </div>
-
-                                  {/* Hover Actions */}
-                                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        const newTitle = prompt('Enter new mission title:', session.title);
-                                        if (newTitle) onRenameSession(session.id, newTitle);
-                                      }}
-                                      className="p-1.5 hover:bg-white/10 rounded text-gray-600 hover:text-white transition-all active:scale-90"
-                                      title="Rename Mission"
-                                    >
-                                      <i className="fa-solid fa-pen text-[8px]"></i>
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (confirm('Permanently purge this mission log?')) onDeleteSession(session.id);
-                                      }}
-                                      className="p-1.5 hover:bg-red-500/20 rounded text-gray-600 hover:text-red-500 transition-all active:scale-90"
-                                      title="Purge Mission"
-                                    >
-                                      <i className="fa-solid fa-trash text-[8px]"></i>
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      })}
-                    </>
-                  );
-                })()
-              )}
-            </div>
-          ) : (
-            <nav className="space-y-2">
-              {navItems.map((item) => {
-                const isGroq = item.provider === 'groq';
-                const activeColor = isGroq ? '#76b900' : '#00f3ff';
-                const meterPercent = isGroq ? groqPercent : geminiPercent;
-
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      onViewChange(item.id);
-                      if (window.innerWidth < 768) toggleOpen();
-                    }}
-                    className={`w-full group flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all relative overflow-hidden ${currentView === item.id
-                      ? 'bg-white/5 text-white shadow-[inset_0_0_15px_rgba(255,255,255,0.02)]'
-                      : 'text-gray-500 hover:text-white hover:bg-white/5'
+                  <div
+                    style={{ color: currentView === item.id ? activeColor : 'inherit' }}
+                    className={`w-5 flex justify-center text-lg transition-transform group-hover:scale-125 ${currentView === item.id ? 'opacity-100 drop-shadow-[0_0_8px_currentColor]' : 'opacity-40 grayscale group-hover:grayscale-0 group-hover:opacity-100'
                       }`}
                   >
-                    {currentView === item.id && (
-                      <div style={{ backgroundColor: activeColor }} className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full shadow-[0_0_10px_currentColor]"></div>
-                    )}
+                    <i className={`fa-solid ${item.icon}`}></i>
+                  </div>
 
-                    <div
-                      style={{ color: currentView === item.id ? activeColor : 'inherit' }}
-                      className={`w-5 flex justify-center text-lg transition-transform group-hover:scale-125 ${currentView === item.id ? 'opacity-100 drop-shadow-[0_0_8px_currentColor]' : 'opacity-40 grayscale group-hover:grayscale-0 group-hover:opacity-100'
-                        }`}
-                    >
-                      <i className={`fa-solid ${item.icon}`}></i>
-                    </div>
+                  {isOpen && (
+                    <div className="flex-1 flex items-center justify-between min-w-0">
+                      <span className={`text-[10px] orbitron font-bold uppercase tracking-[0.2em] truncate mr-2 ${currentView === item.id ? 'text-white' : 'text-gray-500 group-hover:text-gray-200'}`}>
+                        {item.label}
+                      </span>
 
-                    {isOpen && (
-                      <div className="flex-1 flex items-center justify-between min-w-0">
-                        <span className={`text-[10px] orbitron font-bold uppercase tracking-[0.2em] truncate mr-2 ${currentView === item.id ? 'text-white' : 'text-gray-500 group-hover:text-gray-200'}`}>
-                          {item.label}
-                        </span>
-
-                        <div className="flex flex-col items-end gap-0.5">
-                          <div className="w-12 h-1 bg-gray-800 rounded-full overflow-hidden border border-white/5">
-                            <div
-                              style={{ width: `${meterPercent}%`, backgroundColor: activeColor }}
-                              className="h-full shadow-[0_0_5px_currentColor] transition-all duration-1000"
-                            ></div>
-                          </div>
-                          <span className="text-[6px] font-mono opacity-50 text-gray-400">{meterPercent}%</span>
+                      <div className="flex flex-col items-end gap-0.5">
+                        <div className="w-12 h-1 bg-gray-800 rounded-full overflow-hidden border border-white/5">
+                          <div
+                            style={{ width: `${meterPercent}%`, backgroundColor: activeColor }}
+                            className="h-full shadow-[0_0_5px_currentColor] transition-all duration-1000"
+                          ></div>
                         </div>
+                        <span className="text-[6px] font-mono opacity-50 text-gray-400">{meterPercent}%</span>
                       </div>
-                    )}
-                  </button>
-                );
-              })}
-            </nav>
-          )}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
         </div>
 
         <div className="mt-auto border-t border-white/5 p-4 bg-black/40 shrink-0">

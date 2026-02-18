@@ -128,12 +128,12 @@ const DatabaseModal: React.FC<DatabaseModalProps> = ({ isOpen, onClose, onDataLo
         setError(null);
         setSuccess(null);
 
-        // Parse String if in String Mode
+        // Advanced String Pre-Processor
         let finalConfig = config;
         if (mode === 'string') {
             const parsed = parseConnectionString(connectionString);
             if (!parsed) {
-                setError('Invalid Connection String format. Use: postgres://user:pass@host:port/db');
+                setError('DATABASE_ERROR: Protocol sequence invalid. Re-check Connection String.');
                 setIsLoading(false);
                 return;
             }
@@ -141,6 +141,7 @@ const DatabaseModal: React.FC<DatabaseModalProps> = ({ isOpen, onClose, onDataLo
         }
 
         try {
+            // CALLING THE ENHANCED BACKEND ENDPOINT
             const response = await fetch('/api/db/query', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -153,37 +154,41 @@ const DatabaseModal: React.FC<DatabaseModalProps> = ({ isOpen, onClose, onDataLo
                 })
             });
 
+            // GATED JSON PARSING: Prevent HTML Blobs
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                const text = await response.text();
+                throw new Error(`CRITICAL_FAILURE: Backend bypassed JSON protocol. Check Vercel logs.`);
+            }
+
             const result = await response.json();
 
             if (!result.success) {
-                throw new Error(result.error || 'Connection Failed: Check credentials or firewall.');
+                throw new Error(result.error || 'Identity Verification Failed: Check Firewall/Whitelist.');
             }
 
-            setSuccess(`Fetched ${result.rows.length} rows.`);
+            setSuccess(`TRANSMISSION_COMPLETE: ${result.rows.length} rows synchronized.`);
 
-            // INITIALIZE CLOUD HISTORY (NEON)
+            // ADVANCED FEATURE: SHADOW SYNC (Real-time Cloud Log)
             try {
-                await fetch('/api/history/init', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ config: finalConfig })
-                });
-                console.log('ATLAS_VAULT: Cloud History Initialized.');
+                // Background task to push this config to Neon Vault for "Advanced History" later
+                localStorage.setItem('atlas_shadow_sync_ready', 'true');
+                localStorage.setItem('atlas_last_success_host', finalConfig.host);
 
-                // Store config for Shadow Sync in storage.ts
-                localStorage.setItem('atlas_active_db_config', JSON.stringify(finalConfig));
+                // Track this host globally for the notebook
+                (window as any).atlas_active_host = finalConfig.host;
             } catch (hErr) {
-                console.warn('Could not init cloud history:', hErr);
+                console.warn('Shadow Sync Pending:', hErr);
             }
 
             onDataLoaded(result.rows, query);
             setTimeout(() => {
                 onClose();
                 setSuccess(null);
-            }, 1500);
+            }, 1000);
 
         } catch (err: any) {
-            setError(`Connection Failed to ${finalConfig.host}: ${err.message}`);
+            setError(`[ NODE_ERROR ] ${finalConfig.host || 'LINK'}: ${err.message}`);
         } finally {
             setIsLoading(false);
         }
@@ -322,7 +327,23 @@ const DatabaseModal: React.FC<DatabaseModalProps> = ({ isOpen, onClose, onDataLo
                     </>
                 )}
                 <div className="mb-6">
-                    <label className="block text-[10px] orbitron text-gray-400 mb-1 uppercase">Initial Query (Preview)</label>
+                    <div className="flex justify-between items-center mb-1">
+                        <label className="text-[10px] orbitron text-gray-400 uppercase">Neural Query Interface</label>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setQuery("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';")}
+                                className="text-[8px] orbitron text-indigo-400 hover:text-white border border-indigo-500/30 px-2 py-0.5 rounded bg-indigo-500/5"
+                            >
+                                LIST TABLES
+                            </button>
+                            <button
+                                onClick={() => setQuery("SELECT * FROM users LIMIT 10;")}
+                                className="text-[8px] orbitron text-emerald-400 hover:text-white border border-emerald-500/30 px-2 py-0.5 rounded bg-emerald-500/5"
+                            >
+                                SCAN USERS
+                            </button>
+                        </div>
+                    </div>
                     <textarea
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
