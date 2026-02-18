@@ -62,7 +62,7 @@ const VisualHUD: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col p-6 overflow-y-auto bg-[#020203]">
+    <div className="flex flex-col p-6 bg-[#020203]">
       <div className="w-full space-y-8">
         {/* Header with Nvidia vibe */}
         <div className="flex items-center justify-between border-b border-white/5 pb-8">
