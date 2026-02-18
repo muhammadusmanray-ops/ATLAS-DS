@@ -27,13 +27,14 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     setError('');
 
     try {
-      let user;
       if (isLogin) {
-        user = await authService.login(email, password);
+        const user = await authService.login(email, password);
+        if (user) onLogin(user);
       } else {
-        user = await authService.register(email, password);
+        await authService.register(email, password);
+        setError('DEPLOYMENT_INITIATED: Check your mail sector to verify identity.');
+        setIsLogin(true); // Switch back to login after registration
       }
-      if (user) onLogin(user);
     } catch (err: any) {
       setError(err.message || 'Authentication error');
     } finally {
