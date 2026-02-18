@@ -19,7 +19,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      setError('Email and password are required.');
+      setError('Email and password required');
       return;
     }
 
@@ -33,11 +33,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
       } else {
         user = await authService.register(email, password);
       }
-      if (user) {
-        onLogin(user);
-      }
+      if (user) onLogin(user);
     } catch (err: any) {
-      setError(err.message || 'Authentication failed. Check your connection.');
+      setError(err.message || 'Authentication error');
     } finally {
       setIsLoading(false);
     }
@@ -46,29 +44,27 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   return (
     <AuthLayout>
       <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold text-white orbitron tracking-widest uppercase">
-          {isLogin ? 'Commander Login' : 'New Enlistment'}
+        <h1 className="text-2xl font-bold text-white orbitron tracking-widest uppercase mb-1">
+          ATLAS OS
         </h1>
-        <p className="text-slate-400 text-[10px] orbitron opacity-50 uppercase mt-2">
-          {isLogin ? 'Neural Identity Link Required' : 'Register your neural signature'}
+        <p className="text-emerald-500 text-[10px] orbitron font-bold uppercase tracking-tighter">
+          {isLogin ? 'Commander Identity Required' : 'Initialize New Command'}
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input
           type="email"
-          placeholder="COMMANDER_EMAIL@SECTOR.COM"
+          placeholder="USER@SECTOR.COM"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          icon={<i className="fa-solid fa-envelope"></i>}
           required
         />
         <Input
           type="password"
-          placeholder="ACCESS_PASSWORD"
+          placeholder="ACCESS_KEY"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          icon={<i className="fa-solid fa-lock"></i>}
           required
         />
 
@@ -79,12 +75,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
         )}
 
         <Button type="submit" isLoading={isLoading} className="w-full orbitron font-bold">
-          {isLogin ? 'AUTHENTICATE' : 'ENLIST NOW'}
+          {isLogin ? 'AUTHENTICATE' : 'DEPLOY IDENTITY'}
         </Button>
 
         <div className="mt-8 pt-6 border-t border-white/5 text-center">
           <p className="text-[10px] text-gray-500 orbitron uppercase mb-2">
-            {isLogin ? 'New to the Sector?' : 'Already have an ID?'}
+            Switch Protocol?
           </p>
           <button
             type="button"
@@ -92,9 +88,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
               setIsLogin(!isLogin);
               setError('');
             }}
-            className="w-full py-2 border border-white/10 text-white/60 text-[10px] orbitron font-bold hover:bg-white/5 transition-all rounded"
+            className="w-full py-2 border border-white/10 text-white/40 text-[9px] orbitron font-bold hover:bg-white/5 transition-all rounded"
           >
-            {isLogin ? 'ENLIST NEW COMMAND' : 'BACK TO LOGIN'}
+            {isLogin ? 'NEW ENLISTMENT' : 'BACK TO LOGIN'}
           </button>
         </div>
       </form>
