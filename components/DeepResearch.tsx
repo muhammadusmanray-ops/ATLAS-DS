@@ -36,7 +36,7 @@ const DeepResearch: React.FC = () => {
     };
 
     return (
-        <div className="flex flex-col p-6 md:p-12 bg-[#020204] relative selection:bg-[#76b900] selection:text-black">
+        <div className="h-full flex flex-col p-8 overflow-y-auto bg-[#020204] relative selection:bg-[#76b900] selection:text-black">
             {/* Background HUD Elements */}
             <div className="absolute inset-0 opacity-[0.02] pointer-events-none"
                 style={{ backgroundImage: 'radial-gradient(#76b900 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>

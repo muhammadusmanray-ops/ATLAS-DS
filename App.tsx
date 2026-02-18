@@ -226,7 +226,7 @@ const App: React.FC = () => {
         onRenameSession={handleRenameSession}
       />
 
-      <main className={`flex-1 flex flex-col relative transition-all duration-300 ease-in-out min-w-0 ${isSidebarOpen ? 'md:ml-80' : 'md:ml-20'}`}>
+      <main className={`flex-1 flex flex-col relative transition-all duration-300 ease-in-out min-w-0 ${isSidebarOpen ? 'md:ml-80' : 'md:ml-20'} overflow-hidden`}>
         {/* Mobile Sidebar Overlay Shift */}
         {isSidebarOpen && (
           <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setIsSidebarOpen(false)}></div>
@@ -256,7 +256,7 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto relative z-10 w-full custom-scrollbar">
+        <div className="flex-1 relative z-10 w-full overflow-hidden">
           <Suspense fallback={<div className="h-full flex items-center justify-center flex-col gap-4 py-20">
             <i className="fa-solid fa-ghost fa-spin text-5xl text-[#76b900]"></i>
             <p className="orbitron text-xs text-[#76b900] animate-pulse tracking-widest font-black uppercase">Synchronizing Sector...</p>

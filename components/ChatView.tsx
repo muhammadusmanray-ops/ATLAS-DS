@@ -79,7 +79,7 @@ const ChatView: React.FC<ChatViewProps> = ({ messages, setMessages }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#020203] md:pl-10">
+    <div className="flex flex-col h-full bg-[#020203]">
       {/* Mode Toggle Header */}
       <div className="px-6 pt-4 flex justify-center">
         <div className="bg-white/5 border border-white/10 p-1 rounded-xl flex gap-1">

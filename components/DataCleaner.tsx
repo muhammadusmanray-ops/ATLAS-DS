@@ -33,7 +33,7 @@ const DataCleaner: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col p-6 md:p-12 bg-[#020203]">
+    <div className="h-full flex flex-col p-6 overflow-y-auto bg-[#020203]">
       <div className="max-w-6xl mx-auto w-full space-y-8">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-green-500/10 border border-green-500/40 flex items-center justify-center text-green-500 shadow-[0_0_20px_rgba(118,185,0,0.2)]">

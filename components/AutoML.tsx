@@ -135,7 +135,7 @@ const AutoML: React.FC<AutoMLProps> = ({ blueprintData }) => {
   };
 
   return (
-    <div className="flex flex-col p-8 md:p-12 bg-[#020203] relative">
+    <div className="h-full flex flex-col p-8 overflow-y-auto bg-[#020203] relative">
       <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={{ backgroundImage: 'linear-gradient(#76b900 1px, transparent 1px), linear-gradient(90deg, #76b900 1px, transparent 1px)', backgroundSize: '60px 60px' }}></div>
 
       <div className="max-w-5xl mx-auto w-full space-y-12 relative z-10">

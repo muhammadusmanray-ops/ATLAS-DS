@@ -56,6 +56,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <>
+      {/* Mobile Backdrop */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 md:hidden animate-in fade-in duration-300"
