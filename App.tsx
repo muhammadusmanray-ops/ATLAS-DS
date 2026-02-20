@@ -29,16 +29,8 @@ const LoginView = lazy(() => import('./components/LoginView'));
 
 const App: React.FC = () => {
   // PURE INTERFACE MODE: Auth Bypassed by default
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
-  const [user, setUser] = useState<User | null>({
-    id: 'GUEST_COMMANDER',
-    name: 'COMMANDER_USMAN',
-    email: 'atlas.commander@sector.local',
-    rank: 'Commander',
-    verified: true,
-    provider: 'local',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Usman'
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [currentView, setCurrentView] = useState<AppView>(AppView.DASHBOARD);
@@ -99,13 +91,17 @@ const App: React.FC = () => {
     const initSystem = async () => {
       try {
         await db.init();
-        // Interface-Only Mode: Load user data from local storage if specifically saved, else use mock
-        const savedUser = localStorage.getItem('ATLAS_USER_SESSION');
-        if (savedUser) {
-          setUser(JSON.parse(savedUser));
+        const currentUser = await authService.getCurrentUser();
+        if (currentUser) {
+          setUser(currentUser);
+          setIsAuthenticated(true);
+        } else {
+          setIsAuthenticated(false);
+          setUser(null);
         }
       } catch (e) {
         console.error("DIAGNOSTIC_INTERRUPT:", e);
+        setIsAuthenticated(false);
       } finally {
         setTimeout(() => setIsLoading(false), 800);
       }
