@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import TacticalAssistant from './components/TacticalAssistant';
 import { db } from './services/storage';
 import { llmAdapter } from './services/llm';
+import { authService } from './services/authService';
 
 // MISSION CRITICAL: Standard Load for core stability
 import Dashboard from './components/Dashboard';
