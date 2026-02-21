@@ -11,9 +11,12 @@
   }
 
   body {
-    @apply bg-black text-gray-100 overflow-hidden m-0 antialiased;
+    @apply bg-black text-gray-100 m-0 antialiased;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     font-size: 16px;
+    min-height: 100vh;
+    height: 100dvh;
+    overflow: hidden; /* We keep hidden here, but we will fix sectoral scrolling */
   }
 }
 

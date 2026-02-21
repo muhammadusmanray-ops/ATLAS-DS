@@ -261,7 +261,7 @@ const App: React.FC = () => {
   );
 
   return (
-    <div className="h-screen w-screen flex bg-[#020203] text-gray-100 selection:bg-[#76b900] selection:text-black font-sans overflow-hidden">
+    <div className="h-[100dvh] w-screen flex bg-[#020203] text-gray-100 selection:bg-[#76b900] selection:text-black font-sans overflow-hidden">
       <Sidebar
         isOpen={isSidebarOpen}
         toggleOpen={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -277,7 +277,7 @@ const App: React.FC = () => {
         onRenameSession={handleRenameSession}
       />
 
-      <main className="flex-1 flex flex-col relative transition-all duration-300 ease-in-out min-w-0 overflow-hidden">
+      <main className="flex-1 flex flex-col relative transition-all duration-300 ease-in-out min-w-0 overflow-hidden min-h-0">
         {/* Mobile Sidebar Overlay Shift */}
         {isSidebarOpen && (
           <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setIsSidebarOpen(false)}></div>
@@ -307,7 +307,7 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        <div className="flex-1 relative z-10 w-full flex flex-col overflow-hidden">
+        <div className="flex-1 relative z-10 w-full flex flex-col overflow-hidden min-h-0">
           <Suspense fallback={GlobalSectorFallback}>
             {currentView === AppView.DASHBOARD && <Dashboard onViewChange={setCurrentView} />}
             {currentView === AppView.CHAT && <ChatView messages={messages} setMessages={setMessages} />}
