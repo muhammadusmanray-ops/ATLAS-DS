@@ -165,7 +165,8 @@ const App: React.FC = () => {
     await db.saveUser(updatedUser);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await authService.logout();
     setIsAuthenticated(false);
     setUser(null);
     localStorage.removeItem('ATLAS_USER_SESSION');
