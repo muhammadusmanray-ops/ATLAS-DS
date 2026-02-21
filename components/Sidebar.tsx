@@ -65,8 +65,8 @@ const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       <aside className={`
-        fixed inset-y-0 left-0 z-50 bg-[#050508] border-r border-white/5 flex flex-col transition-all duration-300 ease-in-out
         ${isOpen ? 'translate-x-0 w-72 md:w-80' : '-translate-x-full md:translate-x-0 md:w-20'}
+        fixed md:relative inset-y-0 left-0 z-50 md:z-10 bg-[#050508] border-r border-white/5 flex flex-col transition-all duration-300 ease-in-out shrink-0
       `}>
         <div className="p-6 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4 overflow-hidden">

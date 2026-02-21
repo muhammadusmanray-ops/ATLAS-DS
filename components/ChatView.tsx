@@ -100,27 +100,27 @@ const ChatView: React.FC<ChatViewProps> = ({ messages, setMessages }) => {
         </div>
       </div>
 
-      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-6 space-y-8">
-        <div className="max-w-3xl mx-auto space-y-8">
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-6 space-y-8 scroll-smooth">
+        <div className="max-w-3xl mx-auto space-y-8 pb-10">
           {messages.map((msg, idx) => (
             <div key={idx} className={`flex gap-5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
               {msg.role === 'model' && (
                 <div
-                  style={{ backgroundColor: getCoreColor(idx, msg), boxShadow: `0 0 10px ${getCoreColor(idx, msg)}66` }}
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center text-black shrink-0`}
+                  style={{ backgroundColor: getCoreColor(idx, msg), boxShadow: `0 0 15px ${getCoreColor(idx, msg)}66` }}
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center text-black shrink-0 border border-white/10`}
                 >
                   <i className={`fa-solid ${msg.metadata?.provider === 'openai-compatible' ? 'fa-microchip' : 'fa-robot'} text-sm`}></i>
                 </div>
               )}
-              <div className={`max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed ${msg.role === 'user'
-                ? 'bg-green-600/20 border border-green-500/30 text-green-50'
-                : 'bg-white/5 border border-white/10 text-gray-200 shadow-xl'
+              <div className={`max-w-[85%] p-5 rounded-3xl text-sm leading-relaxed ${msg.role === 'user'
+                ? 'bg-green-600/10 border border-green-500/20 text-green-50 rounded-tr-none'
+                : 'bg-white/5 border border-white/10 text-gray-200 shadow-2xl rounded-tl-none'
                 }`}>
-                {msg.content}
+                <div className="whitespace-pre-wrap">{msg.content}</div>
 
                 {/* TACTICAL DATASET CARD DETECTION */}
                 {msg.role === 'model' && (msg.content.includes('kaggle.com/datasets') || msg.type === 'dataset') && (
-                  <div className="mt-4 bg-black/40 border border-yellow-500/20 rounded-xl overflow-hidden relative group/card">
+                  <div className="mt-6 bg-black/60 border border-yellow-500/20 rounded-2xl overflow-hidden relative group/card">
                     <div className="p-4 border-b border-white/5 bg-white/5 flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-yellow-400 flex items-center justify-center text-black">
@@ -133,68 +133,50 @@ const ChatView: React.FC<ChatViewProps> = ({ messages, setMessages }) => {
                       </div>
                       <div className="flex gap-2">
                         <span className="px-2 py-0.5 rounded bg-green-500/10 border border-green-500/20 text-[7px] text-green-500 font-bold uppercase">Public</span>
-                        <span className="px-2 py-0.5 rounded bg-[#76b900]/10 border border-[#76b900]/20 text-[7px] text-[#76b900] font-bold uppercase">CSV</span>
                       </div>
                     </div>
 
                     <div className="p-4 space-y-4">
-                      <div className="flex justify-between items-center text-[9px] orbitron text-gray-400">
-                        <span>METADATA_EXTRACTED</span>
-                        <span className="text-yellow-400">99.8% INTEGRITY</span>
-                      </div>
-
-                      {/* DATA PREVIEW TABLE - Simulated Preview */}
-                      <div className="bg-black/60 rounded-lg border border-white/5 overflow-x-auto custom-scrollbar">
-                        <table className="w-full text-[8px] font-mono text-left">
-                          <thead className="bg-white/5 text-gray-500 uppercase">
-                            <tr>
-                              <th className="p-2 border-b border-white/5">Preg.</th>
-                              <th className="p-2 border-b border-white/5">Glucose</th>
-                              <th className="p-2 border-b border-white/5">BP</th>
-                              <th className="p-2 border-b border-white/5">Insulin</th>
-                              <th className="p-2 border-b border-white/5">BMI</th>
+                      {/* PREVIEW SIMULATION */}
+                      <div className="bg-black/80 rounded-lg border border-white/5 p-3 overflow-x-auto custom-scrollbar">
+                        {/* TABLE CONTENT ... (omitted for brevity but kept in mind) */}
+                        <p className="text-[9px] text-[#76b900] font-mono mb-2">SCANNING DATA_TABS...</p>
+                        <table className="w-full text-[8px] font-mono text-left border-collapse">
+                          <thead>
+                            <tr className="text-gray-600 border-b border-white/5">
+                              <th className="p-1">FEATURE</th>
+                              <th className="p-1 text-right">METRIC</th>
                             </tr>
                           </thead>
-                          <tbody className="text-gray-300">
+                          <tbody>
                             <tr className="border-b border-white/5">
-                              <td className="p-2">6</td>
-                              <td className="p-2 text-green-400">148</td>
-                              <td className="p-2">72</td>
-                              <td className="p-2">0</td>
-                              <td className="p-2 text-[#76b900]">33.6</td>
+                              <td className="p-1">LATENCY</td>
+                              <td className="p-1 text-right text-green-500">LOW</td>
                             </tr>
-                            <tr className="border-b border-white/5 opacity-60">
-                              <td className="p-2">1</td>
-                              <td className="p-2 text-green-400">85</td>
-                              <td className="p-2">66</td>
-                              <td className="p-2">0</td>
-                              <td className="p-2 text-[#76b900]">26.6</td>
+                            <tr>
+                              <td className="p-1">SAMPLES</td>
+                              <td className="p-1 text-right">102.5k</td>
                             </tr>
                           </tbody>
                         </table>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2">
-                        <a
-                          href={msg.content.match(/https?:\/\/[^\s]+/)?.[0] || '#'}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="py-2 bg-yellow-500 text-black rounded-lg text-[9px] orbitron font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-white transition-all shadow-[0_5px_15px_rgba(234,179,8,0.2)]"
-                        >
-                          <i className="fa-solid fa-cloud-arrow-down"></i> Download
-                        </a>
-                        <button className="py-2 bg-white/5 text-gray-300 border border-white/10 rounded-lg text-[9px] orbitron font-bold uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-white/10 transition-all">
-                          <i className="fa-solid fa-code"></i> Python Hub
-                        </button>
-                      </div>
+                      <a
+                        href={msg.content.match(/https?:\/\/[^\s]+/)?.[0] || '#'}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="w-full py-2.5 bg-yellow-500 text-black rounded-xl text-[9px] orbitron font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-white transition-all shadow-xl"
+                      >
+                        <i className="fa-solid fa-cloud-arrow-down"></i> Download_Source
+                      </a>
                     </div>
                   </div>
                 )}
 
-                <div className="mt-2 text-[8px] opacity-30 orbitron tracking-widest uppercase flex justify-between">
-                  <span>{msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                <div className="mt-3 text-[8px] opacity-30 orbitron tracking-[0.2em] uppercase flex justify-between items-center bg-black/20 p-2 rounded-lg border border-white/5">
+                  <span className="flex items-center gap-1"><i className="fa-regular fa-clock"></i> {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   {msg.role === 'model' && (
-                    <span style={{ color: getCoreColor(idx, msg) }}>
+                    <span style={{ color: getCoreColor(idx, msg) }} className="font-black italic">
                       {getCoreLabel(idx, msg)}
                     </span>
                   )}
@@ -203,38 +185,51 @@ const ChatView: React.FC<ChatViewProps> = ({ messages, setMessages }) => {
             </div>
           ))}
           {isLoading && (
-            <div className="flex gap-4 items-center opacity-50">
-              <div className={`w-2 h-2 rounded-full animate-bounce ${useFastMode ? 'bg-[#ff00ff]' : 'bg-[#76b900]'}`}></div>
-              <div className={`w-2 h-2 rounded-full animate-bounce delay-75 ${useFastMode ? 'bg-[#ff00ff]' : 'bg-[#76b900]'}`}></div>
-              <div className={`w-2 h-2 rounded-full animate-bounce delay-150 ${useFastMode ? 'bg-[#ff00ff]' : 'bg-[#76b900]'}`}></div>
+            <div className="flex gap-2.5 items-center pl-14 opacity-40">
+              <div className={`w-1.5 h-1.5 rounded-full animate-bounce ${useFastMode ? 'bg-[#ff00ff]' : 'bg-[#76b900]'}`}></div>
+              <div className={`w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:0.2s] ${useFastMode ? 'bg-[#ff00ff]' : 'bg-[#76b900]'}`}></div>
+              <div className={`w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:0.4s] ${useFastMode ? 'bg-[#ff00ff]' : 'bg-[#76b900]'}`}></div>
             </div>
           )}
         </div>
       </div>
 
-      <div className="p-6 border-t border-white/5 bg-black/40">
+      <div className="p-6 md:p-10 border-t border-white/5 bg-gradient-to-t from-black via-black/95 to-transparent backdrop-blur-md">
         <div className="max-w-3xl mx-auto relative group">
+          <div className="absolute -inset-1 bg-gradient-to-r from-[#76b900]/20 to-[#00f3ff]/20 rounded-3xl blur opacity-0 group-focus-within:opacity-100 transition-opacity"></div>
           <textarea
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-            placeholder={useFastMode ? "Rapid query input..." : "Ask ATLAS-X for tactical DS insights..."}
-            className={`w-full bg-white/5 border rounded-2xl p-4 pr-16 outline-none text-sm transition-all resize-none h-14 ${useFastMode
-              ? 'border-[#ff00ff]/20 focus:border-[#ff00ff] focus:ring-1 focus:ring-[#ff00ff]'
-              : 'border-white/10 focus:border-[#76b900] focus:ring-1 focus:ring-[#76b900]'
+            rows={1}
+            onChange={(e) => {
+              setInput(e.target.value);
+              e.target.style.height = 'auto';
+              e.target.style.height = e.target.scrollHeight + 'px';
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+                e.currentTarget.style.height = 'auto';
+              }
+            }}
+            placeholder={useFastMode ? "Direct link to Rapid Logic Cluster..." : "Send tactical DS instruction to ATLAS-X..."}
+            className={`relative w-full bg-[#050508] border rounded-2xl p-4 md:p-5 pr-16 outline-none text-sm transition-all resize-none max-h-60 custom-scrollbar ${useFastMode
+              ? 'border-[#ff00ff]/20 focus:border-[#ff00ff] shadow-[0_0_20px_rgba(255,0,255,0.05)]'
+              : 'border-white/10 focus:border-[#76b900] shadow-[0_0_20px_rgba(118,185,0,0.05)]'
               }`}
+            style={{ height: '64px' }}
           />
           <button
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
-            className={`absolute right-3 top-3 w-8 h-8 text-black rounded-xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all disabled:opacity-20 disabled:grayscale ${useFastMode ? 'bg-[#ff00ff]' : 'bg-[#76b900]'
+            className={`absolute right-3 bottom-3 md:right-4 md:bottom-4 w-10 h-10 text-black rounded-xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all disabled:opacity-20 disabled:grayscale ${useFastMode ? 'bg-[#ff00ff]' : 'bg-[#76b900]'
               }`}
           >
-            <i className="fa-solid fa-arrow-up text-xs"></i>
+            <i className="fa-solid fa-arrow-up text-sm"></i>
           </button>
         </div>
-        <p className="text-[9px] text-center mt-3 text-gray-600 orbitron tracking-widest uppercase">
-          {useFastMode ? 'FAST_LITE_RELAY ACTIVE' : 'COMBAT SYSTEM ONLINE | AES-256 ENCRYPTION ACTIVE'}
+        <p className="text-[8px] text-center mt-4 text-gray-700 orbitron tracking-[0.4em] uppercase opacity-50 font-bold">
+          Encrypted Neural Relay | {new Date().getFullYear()} Atlas-X Protocol
         </p>
       </div>
     </div>

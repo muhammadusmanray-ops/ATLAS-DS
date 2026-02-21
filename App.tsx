@@ -277,7 +277,7 @@ const App: React.FC = () => {
         onRenameSession={handleRenameSession}
       />
 
-      <main className={`flex-1 flex flex-col relative transition-all duration-300 ease-in-out min-w-0 ${isSidebarOpen ? 'md:pl-80' : 'md:pl-20'} overflow-hidden`}>
+      <main className="flex-1 flex flex-col relative transition-all duration-300 ease-in-out min-w-0 overflow-hidden">
         {/* Mobile Sidebar Overlay Shift */}
         {isSidebarOpen && (
           <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setIsSidebarOpen(false)}></div>
