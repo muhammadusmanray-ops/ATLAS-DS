@@ -203,7 +203,31 @@ const App: React.FC = () => {
     createNewSession(currentView);
   };
 
-  if (isLoading) return <div className="h-screen bg-black flex items-center justify-center text-[#76b900] orbitron text-xs tracking-widest">INITIALIZING_SYSTEM...</div>;
+  if (isLoading) return (
+    <div className="h-screen bg-black flex flex-col items-center justify-center text-[#76b900] orbitron text-[10px] tracking-[0.5em] uppercase">
+      <div className="w-10 h-10 border-2 border-t-[#76b900] border-transparent rounded-full animate-spin mb-8 shadow-[0_0_20px_#76b900]"></div>
+      <div className="flex flex-col items-center gap-2">
+        <p className="animate-pulse">Initializing_Atlas_Kernel...</p>
+        <span className="text-[8px] text-white/20 tracking-widest mt-4">Security Handshake in Progress</span>
+      </div>
+    </div>
+  );
+
+  // EMERGENCY DIAGNOSTIC: Trigger if stuck on black screen
+  if (!isAuthenticated && !user && window.location.search.includes('error')) {
+    return (
+      <div className="h-screen bg-[#050000] flex flex-col items-center justify-center p-10 text-center">
+        <i className="fa-solid fa-triangle-exclamation text-red-500 text-5xl mb-6 shadow-2xl"></i>
+        <h2 className="text-white orbitron font-black text-xl mb-4 tracking-widest uppercase">Protocol_Failure</h2>
+        <p className="text-red-500/80 font-mono text-[11px] max-w-md uppercase leading-relaxed tracking-wider">
+          Reason: The neural bridge with Supabase could not be established.
+          <br /><br />
+          Action: Verify Vercel Environment Variables (URL/KEY) or check network link.
+        </p>
+        <button onClick={() => window.location.reload()} className="mt-10 px-8 py-3 bg-white text-black orbitron font-black text-[10px] rounded-lg">REBOOT_SYSTEM</button>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) return <Suspense fallback={null}><LoginView onLogin={handleLogin} /></Suspense>;
 
