@@ -37,7 +37,14 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
         if (user) onLogin(user);
       }
     } catch (err: any) {
-      setError(err.message || 'Authentication error');
+      console.error("AUTH_ERROR_LOG:", err);
+      // Detailed error for Commander troubleshooting
+      const errorMessage = err.message || 'Authentication error';
+      if (errorMessage.includes('not authorized') || errorMessage.includes('Invalid login')) {
+        setError('STRIKE_FAILED: Invalid Credentials or Unverified Sector.');
+      } else {
+        setError(`SYSTEM_HALT: ${errorMessage.toUpperCase()}`);
+      }
     } finally {
       setIsLoading(false);
     }
