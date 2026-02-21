@@ -80,5 +80,16 @@ export const authService = {
             }
         });
         if (error) throw new Error(error.message);
+    },
+
+    updateProfile: async (updates: { name?: string, rank?: string, avatar?: string }): Promise<void> => {
+        const { error } = await supabase.auth.updateUser({
+            data: {
+                name: updates.name,
+                rank: updates.rank,
+                avatar_url: updates.avatar
+            }
+        });
+        if (error) throw new Error(error.message);
     }
 };

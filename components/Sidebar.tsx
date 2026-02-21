@@ -195,9 +195,14 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
 
             {isOpen && (
-              <div className="mt-2 flex items-center justify-center gap-2 opacity-30">
-                <span className="w-1.5 h-1.5 bg-[#76b900] rounded-full animate-pulse"></span>
-                <span className="text-[8px] font-mono text-[#76b900] uppercase tracking-widest">Net Link: Stable</span>
+              <div className="mt-4 pt-4 border-t border-white/5 flex flex-col items-center gap-2 opacity-50">
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-[#76b900] rounded-full animate-pulse"></span>
+                  <span className="text-[8px] font-mono text-[#76b900] uppercase tracking-widest">Net Link: Stable</span>
+                </div>
+                <div className="text-[7px] orbitron font-bold text-gray-600 uppercase tracking-[0.3em] mt-1 italic">
+                  Licensed to <span className="text-white">M U RAY</span>
+                </div>
               </div>
             )}
           </div>

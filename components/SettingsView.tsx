@@ -55,13 +55,23 @@ const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdateUser, onClear
             avatar: profileAvatar
         };
 
-        // DUAL PERSISTENCE: Save to both localStorage AND IndexedDB
-        localStorage.setItem('ATLAS_USER_SESSION', JSON.stringify(updatedUser));
-        await db.saveUser(updatedUser);
+        try {
+            // TRIPLE PERSISTENCE: localStorage + IndexedDB + Supabase Cloud
+            localStorage.setItem('ATLAS_USER_SESSION', JSON.stringify(updatedUser));
+            await db.saveUser(updatedUser);
+            await authService.updateProfile({
+                name: profileName,
+                rank: profileRank,
+                avatar: profileAvatar
+            });
 
-        onUpdateUser(updatedUser);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
+            onUpdateUser(updatedUser);
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2000);
+        } catch (err) {
+            console.error("FAILED_TO_SYNC_PROFILE:", err);
+            alert("Database Sync Failed. Check Connection.");
+        }
     };
 
 
@@ -112,8 +122,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdateUser, onClear
     };
 
     return (
-        <div className="h-full flex flex-col p-8 bg-[#020204] overflow-y-auto selection:bg-[#76b900] selection:text-black font-sans">
-            <div className="max-w-6xl mx-auto w-full space-y-12 pb-20">
+        <div className="min-h-full flex flex-col p-8 bg-[#020204] relative selection:bg-[#76b900] selection:text-black font-sans">
+            <div className="max-w-6xl mx-auto w-full space-y-12 pb-32">
                 <header className="border-b border-white/5 pb-8 flex justify-between items-end">
                     <div>
                         <h2 className="text-4xl font-black text-white orbitron tracking-tighter">Config<span className="text-[#76b900]">_Center</span></h2>
@@ -126,25 +136,25 @@ const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdateUser, onClear
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
 
-                    {/* Profile Section - ULTRA PRO */}
+                    {/* Profile Section - Identity Sector */}
                     <div className="lg:col-span-4 space-y-8">
                         <div className="bg-white/5 border border-white/10 p-8 rounded-[40px] space-y-8 backdrop-blur-3xl shadow-2xl h-fit relative overflow-hidden group">
                             <div className="absolute top-0 right-0 p-4 opacity-[0.05] pointer-events-none group-hover:rotate-12 transition-transform duration-700">
-                                <i className="fa-solid fa-shield-cat text-8xl text-white"></i>
+                                <i className="fa-solid fa-id-card text-8xl text-white"></i>
                             </div>
 
                             <div className="flex items-center gap-3 relative z-10">
-                                <i className="fa-solid fa-user-ninja text-[#76b900] text-xl"></i>
-                                <h3 className="text-sm font-black text-white orbitron uppercase tracking-widest">Commander ID</h3>
+                                <i className="fa-solid fa-id-badge text-[#76b900] text-xl"></i>
+                                <h3 className="text-sm font-black text-white orbitron uppercase tracking-widest">Active Commander ID</h3>
                             </div>
 
                             <div className="flex flex-col items-center gap-6 py-4 relative z-10">
                                 <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
                                     <div className="w-32 h-32 rounded-[40px] p-1 bg-[#76b900]/20 border border-[#76b900]/40 overflow-hidden shadow-[0_0_30px_rgba(118,185,0,0.3)] group-hover:shadow-[0_0_50px_rgba(118,185,0,0.5)] transition-all">
-                                        <img src={profileAvatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Usman'} alt="Profile" className="w-full h-full rounded-[35px] object-cover" />
+                                        <img src={profileAvatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + user?.name} alt="Profile" className="w-full h-full rounded-[35px] object-cover" />
                                     </div>
                                     <div className="absolute inset-0 bg-[#76b900]/60 rounded-[40px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <i className="fa-solid fa-cloud-arrow-up text-black text-2xl"></i>
+                                        <i className="fa-solid fa-camera text-black text-2xl"></i>
                                     </div>
                                     <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
                                 </div>
@@ -165,11 +175,11 @@ const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdateUser, onClear
                                         value={profileName}
                                         onChange={(e) => setProfileName(e.target.value)}
                                         className="w-full p-4 bg-black/60 border border-white/5 rounded-2xl text-gray-200 text-sm outline-none focus:border-[#76b900] transition-all font-mono"
-                                        placeholder="Enter Callsign..."
+                                        placeholder="Enter Name..."
                                     />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-xs text-gray-500 font-bold uppercase tracking-[0.3em] ml-1">Tactical Rank</label>
+                                    <label className="text-xs text-gray-500 font-bold uppercase tracking-[0.3em] ml-1">Designation</label>
                                     <select
                                         value={profileRank}
                                         onChange={(e) => setProfileRank(e.target.value as 'Commander' | 'Lead Scientist' | 'Junior Intel')}
@@ -184,164 +194,49 @@ const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdateUser, onClear
                                     onClick={handleUpdateProfile}
                                     className="w-full py-5 bg-[#76b900] text-black font-black orbitron text-[10px] tracking-[0.3em] rounded-2xl transition-all uppercase shadow-[0_15px_30px_rgba(118,185,0,0.2)] hover:bg-white active:scale-95"
                                 >
-                                    {saved ? 'ID_SYNCHRONIZED' : 'UPDATE_COMMAND_LINK'}
+                                    {saved ? 'ID_SYNCHRONIZED' : 'SAVE_COMMAND_DATA'}
                                 </button>
+                            </div>
+                        </div>
+
+                        {/* MASTER PROJECT LICENSE - PERMANENT BRANDING */}
+                        <div className="bg-gradient-to-br from-indigo-900/20 via-black to-blue-950/20 border border-white/10 p-8 rounded-[40px] space-y-6 backdrop-blur-3xl shadow-2xl relative overflow-hidden group">
+                            <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <div className="absolute top-4 right-4 bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full text-[7px] font-black orbitron uppercase tracking-widest border border-blue-500/30">
+                                <i className="fa-solid fa-award"></i> MASTER LICENSE
+                            </div>
+
+                            <div className="relative z-10">
+                                <h3 className="text-[10px] font-black text-white orbitron uppercase tracking-[0.3em] flex items-center gap-3 mb-6">
+                                    <i className="fa-solid fa-copyright text-blue-400"></i> Project Architecture
+                                </h3>
+
+                                <div className="flex items-center gap-5">
+                                    <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-blue-500/30 shadow-lg">
+                                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Usman" alt="M U RAY" className="w-full h-full object-cover" />
+                                    </div>
+                                    <div>
+                                        <p className="text-white orbitron font-black text-sm tracking-widest uppercase">M U RAY</p>
+                                        <p className="text-[8px] text-blue-400 font-bold uppercase tracking-[0.2em] mt-1">Foundational Visionary</p>
+                                        <p className="text-[7px] text-gray-600 font-bold uppercase tracking-[0.1em] mt-2 italic">© 2026 Atlas Intelligence Protocol</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
                         {/* Tactical Stats Card */}
                         <div className="bg-white/5 border border-white/10 p-8 rounded-[40px] space-y-6 backdrop-blur-3xl shadow-2xl">
                             <h3 className="text-[10px] font-black text-white orbitron uppercase tracking-[0.3em] flex items-center gap-3">
-                                <i className="fa-solid fa-chart-line text-[#76b900]"></i> Neural Metrics
+                                <i className="fa-solid fa-chart-line text-[#76b900]"></i> Global Efficiency
                             </h3>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="bg-black/40 p-4 rounded-2xl border border-white/5 hover:border-[#76b900]/30 transition-colors">
-                                    <p className="text-[8px] text-gray-500 font-black uppercase tracking-widest mb-1">Success Rate</p>
-                                    <p className="text-[#76b900] orbitron font-black text-lg">98.4%</p>
+                                    <p className="text-[8px] text-gray-500 font-black uppercase tracking-widest mb-1">Logic Accuracy</p>
+                                    <p className="text-[#76b900] orbitron font-black text-lg">99.2%</p>
                                 </div>
                                 <div className="bg-black/40 p-4 rounded-2xl border border-white/5 hover:border-[#76b900]/30 transition-colors">
-                                    <p className="text-[8px] text-gray-500 font-black uppercase tracking-widest mb-1">Neural Sync</p>
-                                    <p className="text-[#76b900] orbitron font-black text-lg">MAX</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* PREMIUM DEVELOPER LICENSE CARD */}
-                        <div className="bg-gradient-to-br from-[#76b900]/10 via-black to-indigo-950/20 border border-[#76b900]/20 p-8 rounded-[40px] backdrop-blur-3xl shadow-2xl relative overflow-hidden group">
-                            {/* Background Pattern */}
-                            <div className="absolute inset-0 opacity-[0.02] pointer-events-none">
-                                <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(#76b900 1px, transparent 1px), linear-gradient(90deg, #76b900 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
-                            </div>
-
-                            {/* Verified Badge */}
-                            <div className="absolute top-4 right-4 bg-[#76b900] text-black px-3 py-1 rounded-full text-[7px] font-black orbitron uppercase tracking-widest flex items-center gap-1 shadow-lg">
-                                <i className="fa-solid fa-shield-check"></i> Verified
-                            </div>
-
-                            <div className="relative z-10 space-y-6">
-                                {/* Header with Profile Photo */}
-                                <div className="flex items-center gap-4 pb-4 border-b border-white/10">
-                                    {/* Profile Photo */}
-                                    <div className="relative">
-                                        <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-white/20 shadow-xl">
-                                            <img
-                                                src={user?.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=Usman"}
-                                                alt="Usman Ray"
-                                                className="w-full h-full object-cover"
-                                            />
-                                        </div>
-                                        <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-full flex items-center justify-center border-2 border-black">
-                                            <i className="fa-solid fa-star text-black text-[10px]"></i>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex-1">
-                                        <h3 className="text-sm font-black text-white orbitron uppercase tracking-[0.2em]">Usman Ray</h3>
-                                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Elite Data Scientist</p>
-                                        <p className="text-[8px] text-gray-500 font-bold uppercase tracking-widest mt-1">Atlas-X Certified Professional</p>
-                                    </div>
-
-                                    {/* GDG Badge */}
-                                    <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-2 rounded-xl">
-                                        <div className="flex gap-0.5">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-gray-400"></div>
-                                            <div className="w-1.5 h-1.5 rounded-full bg-gray-500"></div>
-                                            <div className="w-1.5 h-1.5 rounded-full bg-gray-600"></div>
-                                            <div className="w-1.5 h-1.5 rounded-full bg-gray-700"></div>
-                                        </div>
-                                        <span className="text-[7px] font-black text-white orbitron uppercase">GDG</span>
-                                    </div>
-                                </div>
-
-                                {/* License Details */}
-                                <div className="grid grid-cols-2 gap-6">
-                                    <div className="space-y-4">
-                                        <div>
-                                            <p className="text-[7px] text-gray-500 font-black uppercase tracking-[0.3em] mb-1">Developer ID</p>
-                                            <p className="text-white font-mono text-[10px] font-bold">ATX-{user?.id.substring(0, 8).toUpperCase()}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-[7px] text-gray-500 font-black uppercase tracking-[0.3em] mb-1">Certification Level</p>
-                                            <div className="flex items-center gap-2">
-                                                <div className="px-3 py-1 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-full">
-                                                    <p className="text-black text-[8px] font-black orbitron uppercase tracking-wider">Elite Data Scientist</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <p className="text-[7px] text-gray-500 font-black uppercase tracking-[0.3em] mb-1">Specialization</p>
-                                            <div className="flex flex-wrap gap-1">
-                                                <span className="px-2 py-0.5 bg-white/5 border border-white/20 text-gray-300 text-[7px] font-bold rounded uppercase">AI/ML</span>
-                                                <span className="px-2 py-0.5 bg-white/5 border border-white/20 text-gray-300 text-[7px] font-bold rounded uppercase">Full-Stack</span>
-                                                <span className="px-2 py-0.5 bg-white/5 border border-white/20 text-gray-300 text-[7px] font-bold rounded uppercase">Data Science</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-4">
-                                        {/* Social Links */}
-                                        <div>
-                                            <p className="text-[7px] text-gray-600 font-black uppercase tracking-[0.3em] mb-2">Connect</p>
-                                            <div className="space-y-2">
-                                                <a
-                                                    href="https://instagram.com/usmanray25"
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="flex items-center gap-2 text-[8px] text-gray-400 hover:text-pink-500 transition-colors group/link"
-                                                >
-                                                    <i className="fa-brands fa-instagram w-4 text-center"></i>
-                                                    <span className="font-mono">usmanray25</span>
-                                                </a>
-                                                <a
-                                                    href="https://www.linkedin.com/in/m-usman-ray"
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="flex items-center gap-2 text-[8px] text-gray-400 hover:text-blue-500 transition-colors group/link"
-                                                >
-                                                    <i className="fa-brands fa-linkedin w-4 text-center"></i>
-                                                    <span className="font-mono">m-usman-ray</span>
-                                                </a>
-                                                <a
-                                                    href="https://wa.me/923363337252"
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="flex items-center gap-2 text-[8px] text-gray-400 hover:text-green-500 transition-colors group/link"
-                                                >
-                                                    <i className="fa-brands fa-whatsapp w-4 text-center"></i>
-                                                    <span className="font-mono">03363337252</span>
-                                                </a>
-                                                <a
-                                                    href="tel:+923363337252"
-                                                    className="flex items-center gap-2 text-[8px] text-gray-400 hover:text-[#76b900] transition-colors group/link"
-                                                >
-                                                    <i className="fa-solid fa-phone w-4 text-center"></i>
-                                                    <span className="font-mono">+92 336 3337252</span>
-                                                </a>
-                                            </div>
-                                        </div>
-                                        <div className="space-y-2 pt-2 border-t border-white/5">
-                                            <div className="flex justify-between text-[7px]">
-                                                <span className="text-gray-500 font-black uppercase">Issued</span>
-                                                <span className="text-white font-mono font-bold">Feb 2026</span>
-                                            </div>
-                                            <div className="flex justify-between text-[7px]">
-                                                <span className="text-gray-500 font-black uppercase">Expires</span>
-                                                <span className="text-yellow-500 font-mono font-bold">Never</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Footer Signature */}
-                                <div className="pt-4 border-t border-white/10 flex justify-between items-center">
-                                    <div>
-                                        <p className="text-[7px] text-gray-500 font-black uppercase tracking-widest">Authorized By</p>
-                                        <p className="text-white text-[9px] font-bold orbitron mt-0.5">ATLAS-X Neural Command</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-[7px] text-gray-500 font-black uppercase tracking-widest">Signature</p>
-                                        <p className="text-yellow-500 text-lg font-bold italic mt-0.5" style={{ fontFamily: 'cursive' }}>Usman Ray</p>
-                                    </div>
+                                    <p className="text-[8px] text-gray-500 font-black uppercase tracking-widest mb-1">Latency Link</p>
+                                    <p className="text-[#76b900] orbitron font-black text-lg">LOW</p>
                                 </div>
                             </div>
                         </div>
