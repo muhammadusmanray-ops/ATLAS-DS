@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { User } from '../types';
 import { db } from '../services/storage';
 import { llmAdapter } from '../services/llm';
+import { authService } from '../services/authService';
 
 interface SettingsViewProps {
     user: User | null;
