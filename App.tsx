@@ -215,18 +215,36 @@ const App: React.FC = () => {
     </div>
   );
 
-  // EMERGENCY DIAGNOSTIC: Trigger if stuck on black screen
-  if (!isAuthenticated && !user && window.location.search.includes('error')) {
+  // EMERGENCY DIAGNOSTIC: Trigger if stuck on black screen due to missing keys
+  const isMissingKeys = !import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  if (!isAuthenticated && !user && (window.location.search.includes('error') || isMissingKeys)) {
     return (
-      <div className="h-screen bg-[#050000] flex flex-col items-center justify-center p-10 text-center">
-        <i className="fa-solid fa-triangle-exclamation text-red-500 text-5xl mb-6 shadow-2xl"></i>
-        <h2 className="text-white orbitron font-black text-xl mb-4 tracking-widest uppercase">Protocol_Failure</h2>
-        <p className="text-red-500/80 font-mono text-[11px] max-w-md uppercase leading-relaxed tracking-wider">
-          Reason: The neural bridge with Supabase could not be established.
-          <br /><br />
-          Action: Verify Vercel Environment Variables (URL/KEY) or check network link.
-        </p>
-        <button onClick={() => window.location.reload()} className="mt-10 px-8 py-3 bg-white text-black orbitron font-black text-[10px] rounded-lg">REBOOT_SYSTEM</button>
+      <div className="h-screen bg-[#050000] flex flex-col items-center justify-center p-10 text-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-red-500/5 animate-pulse opacity-20"></div>
+        <i className="fa-solid fa-triangle-exclamation text-red-500 text-6xl mb-8 shadow-[0_0_50px_rgba(239,68,68,0.4)] animate-bounce"></i>
+        <h2 className="text-white orbitron font-black text-2xl mb-4 tracking-[0.3em] uppercase italic">System_Protocol_Failure</h2>
+
+        <div className="bg-white/5 border border-red-500/20 p-8 rounded-[2rem] backdrop-blur-3xl max-w-lg space-y-6">
+          <p className="text-red-500 font-black orbitron text-[12px] uppercase tracking-widest">Diagnostic: Missing Neural Coordinates</p>
+          <p className="text-gray-400 font-mono text-[11px] uppercase leading-relaxed tracking-wider">
+            Commander, the application is unable to bridge with the Supabase Neural Core. This usually happens when Environment Variables are missing in the Deployment Sector.
+          </p>
+          <div className="p-4 bg-black/60 rounded-xl border border-white/5 text-left space-y-2">
+            <p className="text-[#76b900] font-black text-[9px] orbitron uppercase tracking-widest">Required Parameters:</p>
+            <ul className="text-[9px] font-mono text-gray-500 space-y-1">
+              <li>■ VITE_SUPABASE_URL</li>
+              <li>■ VITE_SUPABASE_ANON_KEY</li>
+            </ul>
+          </div>
+          <p className="text-gray-500 font-bold text-[9px] uppercase tracking-[0.2em] italic">
+            Action: Access Vercel Project Settings &gt; Environment Variables and add these keys.
+          </p>
+        </div>
+
+        <button onClick={() => window.location.reload()} className="mt-10 px-10 py-4 bg-white text-black orbitron font-black text-[10px] tracking-[0.3em] rounded-2xl hover:bg-red-500 hover:text-white transition-all active:scale-95 shadow-2xl">
+          RETRY_NEURAL_LINK
+        </button>
       </div>
     );
   }

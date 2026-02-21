@@ -8,8 +8,17 @@ if (!supabaseUrl || !supabaseAnonKey) {
     console.warn("MISSION_CRITICAL_WARNING: Supabase coordinates are missing in .env.local sector.");
 }
 
-// SAFE INITIALIZATION: Prevent top-level crash if env vars are missing
-const safeUrl = supabaseUrl && supabaseUrl.startsWith('http') ? supabaseUrl : 'https://placeholder.supabase.co';
-const safeKey = supabaseAnonKey || 'placeholder-key';
+// ULTRA-SAFE INITIALIZATION
+let supabaseInstance: any;
 
-export const supabase = createClient(safeUrl, safeKey);
+try {
+    const safeUrl = supabaseUrl && supabaseUrl.startsWith('http') ? supabaseUrl : 'https://placeholder.supabase.co';
+    const safeKey = supabaseAnonKey || 'placeholder-key';
+    supabaseInstance = createClient(safeUrl, safeKey);
+} catch (e) {
+    console.error("SUPABASE_INIT_CRITICAL_VOID:", e);
+    // Return a dummy object to prevent "undefined" crashes in other files
+    supabaseInstance = { auth: { getUser: () => Promise.resolve({ data: { user: null }, error: null }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } } }) } };
+}
+
+export const supabase = supabaseInstance;
