@@ -28,7 +28,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   ];
 
   return (
-    <div className="min-h-full flex flex-col p-8 bg-[#020204] relative selection:bg-[#76b900] selection:text-black">
+    <div className="h-full overflow-y-auto custom-scrollbar flex flex-col p-8 bg-[#020204] relative selection:bg-[#76b900] selection:text-black">
       {/* HUD Grid Overlay */}
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
         style={{ backgroundImage: 'linear-gradient(#76b900 1px, transparent 1px), linear-gradient(90deg, #76b900 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>

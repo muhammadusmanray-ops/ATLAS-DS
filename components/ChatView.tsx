@@ -100,7 +100,7 @@ const ChatView: React.FC<ChatViewProps> = ({ messages, setMessages }) => {
         </div>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8">
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-6 space-y-8">
         <div className="max-w-3xl mx-auto space-y-8">
           {messages.map((msg, idx) => (
             <div key={idx} className={`flex gap-5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>

@@ -307,7 +307,7 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        <div className="flex-1 relative z-10 w-full overflow-y-auto custom-scrollbar">
+        <div className="flex-1 relative z-10 w-full flex flex-col overflow-hidden">
           <Suspense fallback={GlobalSectorFallback}>
             {currentView === AppView.DASHBOARD && <Dashboard onViewChange={setCurrentView} />}
             {currentView === AppView.CHAT && <ChatView messages={messages} setMessages={setMessages} />}

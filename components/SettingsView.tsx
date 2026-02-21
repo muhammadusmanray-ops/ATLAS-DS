@@ -123,7 +123,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdateUser, onClear
     };
 
     return (
-        <div className="min-h-full flex flex-col p-8 bg-[#020204] relative selection:bg-[#76b900] selection:text-black font-sans">
+        <div className="h-full overflow-y-auto custom-scrollbar flex flex-col p-8 bg-[#020204] relative selection:bg-[#76b900] selection:text-black font-sans min-h-0">
             <div className="max-w-6xl mx-auto w-full space-y-12 pb-32">
                 <header className="border-b border-white/5 pb-8 flex justify-between items-end">
                     <div>
