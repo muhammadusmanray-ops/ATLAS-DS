@@ -80,6 +80,36 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
           {isLogin ? 'AUTHENTICATE' : 'DEPLOY IDENTITY'}
         </Button>
 
+        {isLogin && (
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-white/10"></div>
+            </div>
+            <div className="relative flex justify-center text-[8px] uppercase">
+              <span className="bg-[#0a0a0c] px-2 text-gray-500 orbitron">Secure Neural Bridge</span>
+            </div>
+          </div>
+        )}
+
+        {isLogin && (
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                setIsLoading(true);
+                await authService.loginWithGoogle();
+              } catch (err: any) {
+                setError(err.message);
+                setIsLoading(false);
+              }
+            }}
+            className="w-full py-2.5 bg-white text-black text-[10px] orbitron font-black rounded flex items-center justify-center gap-3 hover:bg-gray-200 transition-all uppercase tracking-widest"
+          >
+            <img src="https://www.google.com/favicon.ico" className="w-4 h-4" alt="G" />
+            Continue with Google
+          </button>
+        )}
+
         <div className="mt-8 pt-6 border-t border-white/5 text-center">
           <p className="text-[10px] text-gray-500 orbitron uppercase mb-2">
             Switch Protocol?
