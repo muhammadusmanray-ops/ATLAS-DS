@@ -216,7 +216,9 @@ const App: React.FC = () => {
   );
 
   // EMERGENCY DIAGNOSTIC: Trigger if stuck on black screen due to missing keys
-  const isMissingKeys = !import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const isMissingKeys = !import.meta.env.VITE_SUPABASE_URL || (!import.meta.env.VITE_SUPABASE_ANON_KEY && !import.meta.env.VITE_SUPABASE_ANON);
+
+  console.log("ATLAS_SYSTEM_PROBE:", { auth: isAuthenticated, keys: !isMissingKeys });
 
   if (!isAuthenticated && !user && (window.location.search.includes('error') || isMissingKeys)) {
     return (
