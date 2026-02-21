@@ -8,4 +8,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
     console.warn("MISSION_CRITICAL_WARNING: Supabase coordinates are missing in .env.local sector.");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// SAFE INITIALIZATION: Prevent top-level crash if env vars are missing
+const safeUrl = supabaseUrl && supabaseUrl.startsWith('http') ? supabaseUrl : 'https://placeholder.supabase.co';
+const safeKey = supabaseAnonKey || 'placeholder-key';
+
+export const supabase = createClient(safeUrl, safeKey);

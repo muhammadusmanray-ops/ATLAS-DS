@@ -26,7 +26,9 @@ const AutoML = lazy(() => import('./components/AutoML'));
 const KaggleHub = lazy(() => import('./components/KaggleHub'));
 const CareerOps = lazy(() => import('./components/CareerOps'));
 const DeepResearch = lazy(() => import('./components/DeepResearch'));
-const LoginView = lazy(() => import('./components/LoginView'));
+
+// CRITICAL SECTOR: Eager load for immediate identity verification
+import LoginView from './components/LoginView';
 
 const App: React.FC = () => {
   // PURE INTERFACE MODE: Auth Bypassed by default
@@ -229,7 +231,14 @@ const App: React.FC = () => {
     );
   }
 
-  if (!isAuthenticated) return <Suspense fallback={null}><LoginView onLogin={handleLogin} /></Suspense>;
+  if (!isAuthenticated) return <LoginView onLogin={handleLogin} />;
+
+  const GlobalSectorFallback = (
+    <div className="h-full w-full flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm gap-4">
+      <div className="w-8 h-8 border-2 border-t-[#76b900] border-transparent rounded-full animate-spin"></div>
+      <p className="orbitron text-[9px] text-[#76b900] tracking-[0.3em] uppercase animate-pulse">Synchronizing_Sector...</p>
+    </div>
+  );
 
   return (
     <div className="h-screen w-screen flex bg-[#020203] text-gray-100 selection:bg-[#76b900] selection:text-black font-sans overflow-hidden">
@@ -279,10 +288,7 @@ const App: React.FC = () => {
         </header>
 
         <div className="flex-1 relative z-10 w-full overflow-y-auto custom-scrollbar">
-          <Suspense fallback={<div className="h-full flex items-center justify-center flex-col gap-4 py-20">
-            <i className="fa-solid fa-ghost fa-spin text-5xl text-[#76b900]"></i>
-            <p className="orbitron text-xs text-[#76b900] animate-pulse tracking-widest font-black uppercase">Synchronizing Sector...</p>
-          </div>}>
+          <Suspense fallback={GlobalSectorFallback}>
             {currentView === AppView.DASHBOARD && <Dashboard onViewChange={setCurrentView} />}
             {currentView === AppView.CHAT && <ChatView messages={messages} setMessages={setMessages} />}
             {currentView === AppView.SETTINGS && <SettingsView user={user} onUpdateUser={handleUpdateUser} onClearChat={handleClearChat} />}
