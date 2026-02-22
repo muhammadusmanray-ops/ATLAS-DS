@@ -201,7 +201,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdateUser, onClear
                         </div>
 
                         {/* MASTER PROJECT LICENSE - PERMANENT BRANDING */}
-                        <div className="bg-gradient-to-br from-indigo-900/20 via-black to-blue-950/20 border border-white/10 p-8 rounded-[40px] space-y-6 backdrop-blur-3xl shadow-2xl relative overflow-hidden group">
+                        <div className="bg-gradient-to-br from-[#0a0f1d] via-[#020205] to-[#0a0f1d] border border-white/10 p-8 rounded-[40px] space-y-6 backdrop-blur-3xl shadow-2xl relative overflow-hidden group min-h-[220px]">
                             <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                             <div className="absolute top-4 right-4 bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full text-[7px] font-black orbitron uppercase tracking-widest border border-blue-500/30">
                                 <i className="fa-solid fa-award"></i> MASTER LICENSE
@@ -212,14 +212,35 @@ const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdateUser, onClear
                                     <i className="fa-solid fa-copyright text-blue-400"></i> Project Architecture
                                 </h3>
 
-                                <div className="flex items-center gap-5">
-                                    <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-blue-500/30 shadow-lg">
-                                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Usman" alt="M U RAY" className="w-full h-full object-cover" />
+                                <div className="flex flex-col gap-6">
+                                    <div className="flex items-center gap-5">
+                                        <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-blue-500/30 shadow-[0_0_20px_rgba(59,130,246,0.2)] flex-shrink-0">
+                                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Usman&mood=happy&backgroundColor=0a0f1d" alt="M U RAY" className="w-full h-full object-cover" />
+                                        </div>
+                                        <div>
+                                            <p className="text-white orbitron font-black text-sm tracking-widest uppercase">M U RAY</p>
+                                            <p className="text-[8px] text-blue-400 font-bold uppercase tracking-[0.2em] mt-1">Foundational Visionary</p>
+                                            <p className="text-[7px] text-gray-600 font-bold uppercase tracking-[0.1em] mt-2 italic">Official System Protocol © 2026</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="text-white orbitron font-black text-sm tracking-widest uppercase">M U RAY</p>
-                                        <p className="text-[8px] text-blue-400 font-bold uppercase tracking-[0.2em] mt-1">Foundational Visionary</p>
-                                        <p className="text-[7px] text-gray-600 font-bold uppercase tracking-[0.1em] mt-2 italic">© 2026 Atlas Intelligence Protocol</p>
+
+                                    <div className="grid grid-cols-4 gap-3 pt-4 border-t border-white/5">
+                                        <a href="https://instagram.com/muhammadusmanray" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-2 p-3 bg-white/5 rounded-2xl border border-white/5 hover:border-pink-500/50 hover:bg-pink-500/10 transition-all group/icon">
+                                            <i className="fa-brands fa-instagram text-gray-500 group-hover/icon:text-pink-500 text-lg transition-colors"></i>
+                                            <span className="text-[6px] orbitron font-black text-gray-700 group-hover/icon:text-pink-500 uppercase">Insta</span>
+                                        </a>
+                                        <a href="https://wa.me/923070417933" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-2 p-3 bg-white/5 rounded-2xl border border-white/5 hover:border-green-500/50 hover:bg-green-500/10 transition-all group/icon">
+                                            <i className="fa-brands fa-whatsapp text-gray-500 group-hover/icon:text-green-500 text-lg transition-colors"></i>
+                                            <span className="text-[6px] orbitron font-black text-gray-700 group-hover/icon:text-green-500 uppercase">WA</span>
+                                        </a>
+                                        <a href="https://linkedin.com/in/muhammadusmanray" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-2 p-3 bg-white/5 rounded-2xl border border-white/5 hover:border-blue-500/50 hover:bg-blue-500/10 transition-all group/icon">
+                                            <i className="fa-brands fa-linkedin text-gray-500 group-hover/icon:text-blue-500 text-lg transition-colors"></i>
+                                            <span className="text-[6px] orbitron font-black text-gray-700 group-hover/icon:text-blue-500 uppercase">Link</span>
+                                        </a>
+                                        <a href="tel:+923070417933" className="flex flex-col items-center gap-2 p-3 bg-white/5 rounded-2xl border border-white/5 hover:border-[#76b900]/50 hover:bg-[#76b900]/10 transition-all group/icon">
+                                            <i className="fa-solid fa-phone text-gray-500 group-hover/icon:text-[#76b900] text-lg transition-colors"></i>
+                                            <span className="text-[6px] orbitron font-black text-gray-700 group-hover/icon:text-[#76b900] uppercase">Dial</span>
+                                        </a>
                                     </div>
                                 </div>
                             </div>
@@ -254,8 +275,12 @@ const SettingsView: React.FC<SettingsViewProps> = ({ user, onUpdateUser, onClear
 
                             <div className="flex items-center justify-between relative z-10">
                                 <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-[#76b900]/10 rounded-2xl">
-                                        <i className="fa-solid fa-ghost text-[#76b900] text-xl"></i>
+                                    <div className="w-12 h-12 bg-[#76b900]/10 rounded-2xl border border-[#76b900]/20 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                        {profileAvatar ? (
+                                            <img src={profileAvatar} className="w-full h-full object-cover" alt="Profile" />
+                                        ) : (
+                                            <span className="text-[#76b900] font-black orbitron text-xl">{profileName?.[0] || 'A'}</span>
+                                        )}
                                     </div>
                                     <div>
                                         <h3 className="text-sm font-black text-white orbitron uppercase tracking-widest">Neural Cluster Selection</h3>

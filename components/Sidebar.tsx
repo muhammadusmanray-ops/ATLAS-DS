@@ -176,7 +176,13 @@ const Sidebar: React.FC<SidebarProps> = ({
               {user && (
                 <div className="flex items-center gap-4 p-2 bg-white/5 rounded-2xl border border-white/5">
                   <div className="relative">
-                    <img src={user.avatar} className="w-10 h-10 rounded-xl border border-white/10 shadow-lg" alt="Commander" />
+                    <div className="w-10 h-10 rounded-xl border border-white/10 shadow-lg bg-black/40 overflow-hidden flex items-center justify-center flex-shrink-0">
+                      {user.avatar ? (
+                        <img src={user.avatar} className="w-full h-full object-cover" alt="Commander" />
+                      ) : (
+                        <span className="text-[10px] orbitron font-black text-[#76b900]">{user.name?.[0] || 'C'}</span>
+                      )}
+                    </div>
                     <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-[#76b900] border-2 border-[#020203] rounded-full animate-pulse"></div>
                   </div>
                   <div className="flex flex-col min-w-0">

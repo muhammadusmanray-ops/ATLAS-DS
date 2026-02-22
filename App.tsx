@@ -349,7 +349,13 @@ const App: React.FC = () => {
                   <p className="text-[11px] orbitron font-black text-white leading-none uppercase">{user.name}</p>
                   <p className="text-[8px] orbitron text-[#76b900] font-bold mt-1 tracking-widest uppercase">{user.rank}</p>
                 </div>
-                <img src={user.avatar} className="w-9 h-9 rounded-xl border border-white/10 shadow-lg" alt="Commander" />
+                <div className="w-10 h-10 rounded-xl border border-white/10 shadow-lg bg-white/5 overflow-hidden flex items-center justify-center flex-shrink-0">
+                  {user.avatar ? (
+                    <img src={user.avatar} className="w-full h-full object-cover" alt="Commander" />
+                  ) : (
+                    <span className="text-[10px] orbitron font-black text-[#76b900]">{user.name?.[0] || 'C'}</span>
+                  )}
+                </div>
               </div>
             )}
           </div>
