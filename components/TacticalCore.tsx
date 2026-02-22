@@ -155,9 +155,9 @@ const TacticalCore = ({ messages, setMessages, uiConfig }: any) => {
       {/* MESSAGES AREA - FLUID SCROLL */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto custom-scrollbar px-6 md:px-12 py-10 scroll-smooth"
+        className="flex-1 overflow-y-auto custom-scrollbar px-6 md:px-12 py-10 scroll-smooth relative"
       >
-        <div className="max-w-4xl mx-auto space-y-10 pb-40">
+        <div className="max-w-4xl mx-auto space-y-10 pb-10">
           {messages.map((msg, idx) => (
             <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
               <div className={`flex gap-5 max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -192,14 +192,17 @@ const TacticalCore = ({ messages, setMessages, uiConfig }: any) => {
         </div>
       </div>
 
-      {/* FIXED TACTICAL INPUT AREA - CHATGPT STYLE */}
-      <div className="absolute bottom-0 left-0 right-0 p-8 pt-20 bg-gradient-to-t from-[#020203] via-[#020203]/95 to-transparent z-[100]">
+      {/* TACTICAL INPUT AREA - FLEX FLOW FOR MOBILE STABILITY */}
+      <div className="p-4 md:p-8 bg-[#020203] border-t border-white/5 relative z-30">
         <div className="max-w-3xl mx-auto relative group">
-          <div className="absolute -inset-1 bg-gradient-to-r from-[#76b900]/20 to-transparent rounded-[2rem] blur-xl opacity-0 group-focus-within:opacity-100 transition-all duration-700"></div>
+          <div className="absolute -inset-1 bg-gradient-to-r from-[#76b900]/10 to-transparent rounded-[2rem] blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-700"></div>
           <textarea
             ref={inputRef}
             value={input}
             rows={1}
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
             onChange={(e) => {
               setInput(e.target.value);
               e.target.style.height = 'auto';
@@ -212,18 +215,18 @@ const TacticalCore = ({ messages, setMessages, uiConfig }: any) => {
               }
             }}
             placeholder="How can Atlas-X assist you today?"
-            className="w-full bg-[#111113] border border-white/10 rounded-[1.8rem] py-5 px-7 pr-20 outline-none text-[16px] leading-relaxed transition-all resize-none custom-scrollbar shadow-2xl text-white focus:border-[#76b900]/40 placeholder:text-white/10 font-medium"
+            className="w-full bg-[#0a0a0c] border border-white/10 rounded-[1.8rem] py-5 px-7 pr-20 outline-none text-[16px] leading-relaxed transition-border resize-none custom-scrollbar shadow-2xl text-white focus:border-[#76b900]/60 placeholder:text-white/5 font-medium"
             style={{ minHeight: '68px' }}
           />
           <button
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
-            className="absolute right-3.5 bottom-3.5 w-11 h-11 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-xl disabled:opacity-10"
+            className="absolute right-3.5 bottom-3.5 w-11 h-11 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-xl disabled:opacity-10 z-10"
           >
             <i className="fa-solid fa-arrow-up text-base"></i>
           </button>
         </div>
-        <div className="text-[10px] text-center mt-4 text-white/5 orbitron tracking-[0.4em] uppercase font-black pointer-events-none">
+        <div className="text-[8px] text-center mt-4 text-white/5 orbitron tracking-[0.4em] uppercase font-black pointer-events-none hidden md:block">
           Atlas-X Intelligence Node | Neural Hub
         </div>
       </div>
