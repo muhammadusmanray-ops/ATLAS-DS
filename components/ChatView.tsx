@@ -4,13 +4,13 @@ import { geminiService } from '../services/gemini';
 import { llmAdapter } from '../services/llm';
 import { UIConfig } from './UIAdjuster';
 
-export interface ChatViewProps {
+export interface TacticalChatProps {
   messages: Message[];
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   uiConfig: UIConfig;
 }
 
-const ChatView = ({ messages, setMessages, uiConfig }: ChatViewProps) => {
+const ChatView = ({ messages, setMessages, uiConfig }: TacticalChatProps) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [useFastMode, setUseFastMode] = useState(false);

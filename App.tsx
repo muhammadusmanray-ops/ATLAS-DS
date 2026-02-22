@@ -362,6 +362,7 @@ const App: React.FC = () => {
             <div className="flex-1 w-full max-w-[1700px] h-full flex flex-col transition-all duration-300">
               <Suspense fallback={GlobalSectorFallback}>
                 {currentView === AppView.DASHBOARD && <Dashboard onViewChange={setCurrentView} uiConfig={uiConfig} />}
+                {/* SYNC_PROTOCOL: Tactical Core Prop Alignment Active */}
                 {currentView === AppView.CHAT && <ChatView messages={messages} setMessages={setMessages} uiConfig={uiConfig} />}
                 {currentView === AppView.SETTINGS && <SettingsView user={user} onUpdateUser={handleUpdateUser} onClearChat={handleClearChat} />}
                 {currentView === AppView.SECURITY && <SecurityView />}
