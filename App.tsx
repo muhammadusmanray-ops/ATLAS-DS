@@ -126,7 +126,7 @@ const App: React.FC = () => {
               name: 'Commander Guest',
               email: 'guest@atlas-x.ai',
               rank: 'Commander',
-              avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=guest',
+              avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Usman&backgroundColor=020203',
               verified: true
             };
             setUser(guestUser);
@@ -144,7 +144,7 @@ const App: React.FC = () => {
             name: 'Commander Guest',
             email: 'guest@atlas-x.ai',
             rank: 'Commander',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=guest',
+            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Usman&backgroundColor=020203',
             verified: true
           };
           setUser(guestUser);
@@ -332,11 +332,19 @@ const App: React.FC = () => {
         )}
 
         {/* Global HUD Header */}
-        <header className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-[#050508]/80 backdrop-blur-md z-30 shrink-0 sticky top-0">
+        <header className="h-16 border-b border-white/5 flex items-center justify-between px-4 md:px-8 bg-[#050508]/80 backdrop-blur-md z-30 shrink-0 sticky top-0">
           <div className="flex items-center gap-4">
+            {/* MOBILE TERMINAL TRIGGER */}
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="md:hidden w-10 h-10 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-[#76b900] active:scale-95 transition-all shadow-lg"
+            >
+              <i className="fa-solid fa-bars-staggered text-lg"></i>
+            </button>
+
             <div className="flex flex-col">
-              <span className="text-[12px] orbitron font-black text-white/40 tracking-[0.5em] uppercase leading-none">Sector</span>
-              <span className="text-sm orbitron font-black text-white tracking-widest uppercase mt-1">{currentView.replace('_', ' ')}</span>
+              <span className="text-[10px] md:text-[12px] orbitron font-black text-white/40 tracking-[0.5em] uppercase leading-none">Sector</span>
+              <span className="text-xs md:text-sm orbitron font-black text-white tracking-widest uppercase mt-1 truncate max-w-[120px] md:max-w-none">{currentView.replace('_', ' ')}</span>
             </div>
           </div>
           <div className="flex items-center gap-6">
@@ -349,11 +357,14 @@ const App: React.FC = () => {
                   <p className="text-[11px] orbitron font-black text-white leading-none uppercase">{user.name}</p>
                   <p className="text-[8px] orbitron text-[#76b900] font-bold mt-1 tracking-widest uppercase">{user.rank}</p>
                 </div>
-                <div className="w-10 h-10 rounded-xl border border-white/10 shadow-lg bg-white/5 overflow-hidden flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 rounded-xl border border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.5)] bg-[#050508] overflow-hidden flex items-center justify-center flex-shrink-0 relative group/avatar">
                   {user.avatar ? (
-                    <img src={user.avatar} className="w-full h-full object-cover" alt="Commander" />
+                    <>
+                      <img src={user.avatar} className="w-full h-full object-cover group-hover/avatar:scale-110 transition-transform duration-500" alt="Commander" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none"></div>
+                    </>
                   ) : (
-                    <span className="text-[10px] orbitron font-black text-[#76b900]">{user.name?.[0] || 'C'}</span>
+                    <span className="text-xs orbitron font-black text-[#76b900] tracking-tighter">{user.name?.[0] || 'C'}</span>
                   )}
                 </div>
               </div>
