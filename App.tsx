@@ -392,6 +392,15 @@ const App: React.FC = () => {
             </div>
           </div>
           <TacticalAssistant currentView={currentView} />
+
+          {/* THE GHOST BACKGROUND - M U RAY MASTERBRAND */}
+          <div className="fixed -bottom-40 -right-40 opacity-[0.03] pointer-events-none z-0 hover:opacity-[0.1] transition-opacity duration-1000 rotate-12 group">
+            <i className="fa-solid fa-ghost text-[800px] text-white"></i>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+              <p className="orbitron text-[40px] font-black text-white/5 tracking-[2em] ml-[1em]">ATLAS_X</p>
+              <p className="orbitron text-[10px] font-black text-[#76b900]/10 tracking-[1em] mt-4">NVIDIA_NEURAL_STATION</p>
+            </div>
+          </div>
         </div>
       </main>
     </div>
