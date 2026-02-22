@@ -192,10 +192,9 @@ const TacticalCore = ({ messages, setMessages, uiConfig }: any) => {
         </div>
       </div>
 
-      {/* TACTICAL INPUT AREA - FLEX FLOW FOR MOBILE STABILITY */}
-      <div className="p-4 md:p-8 bg-[#020203] border-t border-white/5 relative z-30">
-        <div className="max-w-3xl mx-auto relative group">
-          <div className="absolute -inset-1 bg-gradient-to-r from-[#76b900]/10 to-transparent rounded-[2rem] blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-700"></div>
+      {/* TACTICAL INPUT AREA - HIGH PRIORITY NODE */}
+      <div className="p-4 md:p-8 bg-[#020203] border-t border-white/10 relative z-[60] shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
+        <div className="max-w-3xl mx-auto relative">
           <textarea
             ref={inputRef}
             value={input}
@@ -215,19 +214,16 @@ const TacticalCore = ({ messages, setMessages, uiConfig }: any) => {
               }
             }}
             placeholder="How can Atlas-X assist you today?"
-            className="w-full bg-[#0a0a0c] border border-white/10 rounded-[1.8rem] py-5 px-7 pr-20 outline-none text-[16px] leading-relaxed transition-border resize-none custom-scrollbar shadow-2xl text-white focus:border-[#76b900]/60 placeholder:text-white/5 font-medium"
+            className="w-full bg-[#0a0a0c] border border-white/10 rounded-[1.8rem] py-5 px-7 pr-20 outline-none text-[16px] leading-relaxed resize-none custom-scrollbar text-white focus:border-[#76b900]/80 placeholder:text-white/10 font-medium"
             style={{ minHeight: '68px' }}
           />
           <button
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
-            className="absolute right-3.5 bottom-3.5 w-11 h-11 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-xl disabled:opacity-10 z-10"
+            className="absolute right-3.5 bottom-3.5 w-11 h-11 bg-[#76b900] text-black rounded-full flex items-center justify-center hover:bg-white active:scale-95 transition-all shadow-[0_0_20px_rgba(118,185,0,0.2)] disabled:opacity-10 z-10"
           >
             <i className="fa-solid fa-arrow-up text-base"></i>
           </button>
-        </div>
-        <div className="text-[8px] text-center mt-4 text-white/5 orbitron tracking-[0.4em] uppercase font-black pointer-events-none hidden md:block">
-          Atlas-X Intelligence Node | Neural Hub
         </div>
       </div>
     </div>

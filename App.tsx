@@ -384,7 +384,7 @@ const App: React.FC = () => {
               <Suspense fallback={GlobalSectorFallback}>
                 {currentView === AppView.DASHBOARD && <Dashboard onViewChange={setCurrentView} uiConfig={uiConfig} />}
                 {/* SYNC_PROTOCOL: Tactical Core Prop Alignment Active */}
-                {currentView === AppView.CHAT && <TacticalCore messages={messages} setMessages={setMessages} uiConfig={uiConfig} />}
+                {currentView === AppView.CHAT && <TacticalCore key="tactical-core-node" messages={messages} setMessages={setMessages} uiConfig={uiConfig} />}
                 {currentView === AppView.SETTINGS && <SettingsView user={user} onUpdateUser={handleUpdateUser} onClearChat={handleClearChat} />}
                 {currentView === AppView.SECURITY && <SecurityView />}
                 {currentView === AppView.NOTEBOOK && <NotebookView />}
