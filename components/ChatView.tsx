@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Message } from '../types';
 import { geminiService } from '../services/gemini';
@@ -16,7 +15,12 @@ const ChatView: React.FC<ChatViewProps> = ({ messages, setMessages }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
   }, [messages, isLoading]);
 
   const handleSend = async () => {
@@ -30,207 +34,132 @@ const ChatView: React.FC<ChatViewProps> = ({ messages, setMessages }) => {
       let responseText = "";
       const currentConfig = llmAdapter.getConfig();
 
+      // Tactical Core always uses the powerful Groq-driven logic unless explicitly toggled
       if (currentConfig.provider === 'openai-compatible' || !useFastMode) {
-        // Enforce Groq/Llama for Tactical Mode
-        const sysPrompt = "You are ATLAS-X, a robotic Data Science Combat Intelligence. Tone: Robotic, tactical, professional but MULTILINGUAL. You MUST understand Roman Urdu, Hinglish, and colloquial slang. Respond in a mix of English and Roman Urdu if the user does.";
-
-        // Pass the last 10 messages as history for memory
+        const sysPrompt = "You are ATLAS-X, a high-performance tactical AI powered by Nvidia Logic. Respond with extreme technical precision and a dark, high-tech persona.";
         const history = messages.slice(-10).map(m => ({
           role: m.role === 'model' ? 'assistant' : 'user',
           content: m.content
         }));
 
-        console.log("SENDING TO GROQ ADAPTER...");
         const res = await llmAdapter.chat(input, sysPrompt, history as any);
-        responseText = res?.text || "NO_DATA_RECEIVED";
+        responseText = res?.text || "COMMUNICATION_ERROR: HANDSHAKE_FAILED";
       } else {
-        // useFastMode = true -> Gemini Lite
-        console.log("SENDING TO GEMINI SERVICE...");
         const response = await geminiService.fastChat(input);
         responseText = response.text || "";
       }
 
       const modelMsg: Message = {
         role: 'model',
-        content: responseText || "PROTOCOL_FAILURE: Empty response from Neural Core.",
+        content: responseText || "Handshake lost. Please try again.",
         type: 'text',
         timestamp: new Date(),
         metadata: { provider: useFastMode ? 'gemini' : 'groq' }
       };
       setMessages(prev => [...prev, modelMsg]);
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'model', content: "CRITICAL_ERROR: Handshake lost.", type: 'text', timestamp: new Date() }]);
+      setMessages(prev => [...prev, { role: 'model', content: "CRITICAL_NEURAL_LINK_FAILURE", type: 'text', timestamp: new Date() }]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const getCoreColor = (idx: number, msg: Message) => {
-    if (msg.role === 'user') return '';
-    const provider = msg.metadata?.provider || (useFastMode ? 'gemini-lite' : 'gemini-pro');
-    if (provider === 'openai-compatible') return '#76b900'; // Nvidia Green for Groq
-    return '#00f3ff'; // Tactical Blue for Gemini
-  };
-
-  const getCoreLabel = (idx: number, msg: Message) => {
-    const provider = msg.metadata?.provider;
-    if (provider === 'openai-compatible') return 'GROQ_CORE (NV_POWER)';
-    return useFastMode ? 'GEMINI_LITE' : 'GEMINI_TACTICAL';
-  };
-
   return (
-    <div className="flex flex-col h-full bg-[#020203]">
-      {/* Mode Toggle Header */}
-      <div className="px-6 pt-4 flex justify-center">
-        <div className="bg-white/5 border border-white/10 p-1 rounded-xl flex gap-1">
+    <div className="flex-1 flex flex-col h-full bg-[#020203] relative overflow-hidden">
+      {/* TACTICAL HUD HEADER */}
+      <div className="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-[#050508]/80 backdrop-blur-md z-20">
+        <div className="flex items-center gap-3">
+          <div className={`w-2 h-2 rounded-full animate-pulse ${useFastMode ? 'bg-white shadow-[0_0_5px_#ffffff]' : 'bg-[#76b900]'}`}></div>
+          <span className="orbitron text-[10px] font-black text-white/40 tracking-[0.3em] uppercase">Tactical_Relay</span>
+        </div>
+        <div className="flex bg-white/5 rounded-xl p-1 border border-white/10 shadow-inner">
           <button
             onClick={() => setUseFastMode(false)}
-            className={`px-4 py-2 rounded-lg text-[10px] orbitron font-bold uppercase tracking-widest transition-all ${!useFastMode ? 'bg-[#76b900] text-black shadow-[0_0_10px_rgba(118,185,0,0.4)]' : 'text-gray-500 hover:text-white'
-              }`}
+            className={`px-5 py-2 rounded-lg text-[9px] orbitron font-black transition-all uppercase tracking-widest ${!useFastMode ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.4)]' : 'text-gray-500 hover:text-white'}`}
           >
-            <i className="fa-solid fa-brain mr-2"></i> Tactical (Pro)
+            Nvidia_Logic (Groq)
           </button>
           <button
             onClick={() => setUseFastMode(true)}
-            className={`px-4 py-2 rounded-lg text-[10px] orbitron font-bold uppercase tracking-widest transition-all ${useFastMode ? 'bg-[#ff00ff] text-black shadow-[0_0_10px_rgba(255,0,255,0.4)]' : 'text-gray-500 hover:text-white'
-              }`}
+            className={`px-5 py-2 rounded-lg text-[9px] orbitron font-black transition-all uppercase tracking-widest ${useFastMode ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.4)]' : 'text-gray-500 hover:text-white'}`}
           >
-            <i className="fa-solid fa-bolt mr-2"></i> Rapid (Lite)
+            Rapid_Inference
           </button>
         </div>
       </div>
 
-      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-6 space-y-8 scroll-smooth">
-        <div className="max-w-3xl mx-auto space-y-8 pb-10">
+      {/* MESSAGES AREA - FLUID SCROLL */}
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto custom-scrollbar px-6 md:px-12 py-10 scroll-smooth"
+      >
+        <div className="max-w-4xl mx-auto space-y-10 pb-40">
           {messages.map((msg, idx) => (
-            <div key={idx} className={`flex gap-5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-              {msg.role === 'model' && (
-                <div
-                  style={{ backgroundColor: getCoreColor(idx, msg), boxShadow: `0 0 15px ${getCoreColor(idx, msg)}66` }}
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center text-black shrink-0 border border-white/10`}
-                >
-                  <i className={`fa-solid ${msg.metadata?.provider === 'openai-compatible' ? 'fa-microchip' : 'fa-robot'} text-sm`}></i>
+            <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
+              <div className={`flex gap-5 max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                <div className={`w-10 h-10 rounded-xl shrink-0 flex items-center justify-center border transition-all ${msg.role === 'user' ? 'bg-[#76b900] text-black border-[#76b900]/50' : 'bg-white/5 text-[#76b900] border-white/10'}`}>
+                  <i className={`fa-solid ${msg.role === 'user' ? 'fa-user-ghost' : 'fa-robot'} text-sm`}></i>
                 </div>
-              )}
-              <div className={`max-w-[85%] p-5 rounded-3xl text-sm leading-relaxed ${msg.role === 'user'
-                ? 'bg-green-600/10 border border-green-500/20 text-green-50 rounded-tr-none'
-                : 'bg-white/5 border border-white/10 text-gray-200 shadow-2xl rounded-tl-none'
-                }`}>
-                <div className="whitespace-pre-wrap">{msg.content}</div>
-
-                {/* TACTICAL DATASET CARD DETECTION */}
-                {msg.role === 'model' && (msg.content.includes('kaggle.com/datasets') || msg.type === 'dataset') && (
-                  <div className="mt-6 bg-black/60 border border-yellow-500/20 rounded-2xl overflow-hidden relative group/card">
-                    <div className="p-4 border-b border-white/5 bg-white/5 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-yellow-400 flex items-center justify-center text-black">
-                          <i className="fa-brands fa-kaggle text-lg"></i>
-                        </div>
-                        <div>
-                          <h4 className="text-[10px] orbitron font-bold text-yellow-400 uppercase tracking-widest">Dataset Intel Node</h4>
-                          <p className="text-[8px] text-gray-500 font-mono italic">Source: Kaggle Repository</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="px-2 py-0.5 rounded bg-green-500/10 border border-green-500/20 text-[7px] text-green-500 font-bold uppercase">Public</span>
-                      </div>
-                    </div>
-
-                    <div className="p-4 space-y-4">
-                      {/* PREVIEW SIMULATION */}
-                      <div className="bg-black/80 rounded-lg border border-white/5 p-3 overflow-x-auto custom-scrollbar">
-                        {/* TABLE CONTENT ... (omitted for brevity but kept in mind) */}
-                        <p className="text-[9px] text-[#76b900] font-mono mb-2">SCANNING DATA_TABS...</p>
-                        <table className="w-full text-[8px] font-mono text-left border-collapse">
-                          <thead>
-                            <tr className="text-gray-600 border-b border-white/5">
-                              <th className="p-1">FEATURE</th>
-                              <th className="p-1 text-right">METRIC</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr className="border-b border-white/5">
-                              <td className="p-1">LATENCY</td>
-                              <td className="p-1 text-right text-green-500">LOW</td>
-                            </tr>
-                            <tr>
-                              <td className="p-1">SAMPLES</td>
-                              <td className="p-1 text-right">102.5k</td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-
-                      <a
-                        href={msg.content.match(/https?:\/\/[^\s]+/)?.[0] || '#'}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="w-full py-2.5 bg-yellow-500 text-black rounded-xl text-[9px] orbitron font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-white transition-all shadow-xl"
-                      >
-                        <i className="fa-solid fa-cloud-arrow-down"></i> Download_Source
-                      </a>
-                    </div>
+                <div className="space-y-2">
+                  <div className={`p-5 rounded-2xl text-[15px] leading-relaxed border selection:bg-[#76b900] selection:text-black ${msg.role === 'user' ? 'bg-[#76b900]/10 border-[#76b900]/20 text-white' : 'bg-[#0a0a0b] border-white/5 text-gray-200'}`}>
+                    {msg.content}
                   </div>
-                )}
-
-                <div className="mt-3 text-[8px] opacity-30 orbitron tracking-[0.2em] uppercase flex justify-between items-center bg-black/20 p-2 rounded-lg border border-white/5">
-                  <span className="flex items-center gap-1"><i className="fa-regular fa-clock"></i> {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                  {msg.role === 'model' && (
-                    <span style={{ color: getCoreColor(idx, msg) }} className="font-black italic">
-                      {getCoreLabel(idx, msg)}
-                    </span>
-                  )}
+                  <div className={`flex items-center gap-2 px-1 opacity-20 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <span className="text-[8px] font-black orbitron tracking-tighter uppercase">{msg.role === 'user' ? 'Commander' : 'Atlas-X'}</span>
+                    <div className="w-1 h-1 rounded-full bg-white"></div>
+                    <span className="text-[8px] font-mono">{msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
                 </div>
               </div>
             </div>
           ))}
           {isLoading && (
-            <div className="flex gap-2.5 items-center pl-14 opacity-40">
-              <div className={`w-1.5 h-1.5 rounded-full animate-bounce ${useFastMode ? 'bg-[#ff00ff]' : 'bg-[#76b900]'}`}></div>
-              <div className={`w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:0.2s] ${useFastMode ? 'bg-[#ff00ff]' : 'bg-[#76b900]'}`}></div>
-              <div className={`w-1.5 h-1.5 rounded-full animate-bounce [animation-delay:0.4s] ${useFastMode ? 'bg-[#ff00ff]' : 'bg-[#76b900]'}`}></div>
+            <div className="flex gap-4 items-center pl-14 opacity-40">
+              <div className="flex gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#76b900] animate-bounce"></div>
+                <div className="w-1.5 h-1.5 rounded-full bg-[#76b900] animate-bounce [animation-delay:0.2s]"></div>
+                <div className="w-1.5 h-1.5 rounded-full bg-[#76b900] animate-bounce [animation-delay:0.4s]"></div>
+              </div>
+              <span className="text-[9px] orbitron tracking-[0.2em] font-black uppercase">Sequencing...</span>
             </div>
           )}
         </div>
       </div>
 
-      <div className="p-6 md:p-10 border-t border-white/5 bg-gradient-to-t from-black via-black/95 to-transparent backdrop-blur-md">
+      {/* FIXED TACTICAL INPUT AREA - CHATGPT STYLE */}
+      <div className="absolute bottom-0 left-0 right-0 p-8 pt-20 bg-gradient-to-t from-[#020203] via-[#020203]/95 to-transparent z-[100]">
         <div className="max-w-3xl mx-auto relative group">
-          <div className="absolute -inset-1 bg-gradient-to-r from-[#76b900]/20 to-[#00f3ff]/20 rounded-3xl blur opacity-0 group-focus-within:opacity-100 transition-opacity"></div>
+          <div className="absolute -inset-1 bg-gradient-to-r from-[#76b900]/20 to-transparent rounded-[2rem] blur-xl opacity-0 group-focus-within:opacity-100 transition-all duration-700"></div>
           <textarea
             value={input}
             rows={1}
+            autoFocus
             onChange={(e) => {
               setInput(e.target.value);
               e.target.style.height = 'auto';
-              e.target.style.height = e.target.scrollHeight + 'px';
+              e.target.style.height = Math.min(e.target.scrollHeight, 250) + 'px';
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSend();
-                e.currentTarget.style.height = 'auto';
               }
             }}
-            placeholder={useFastMode ? "Direct link to Rapid Logic Cluster..." : "Send tactical DS instruction to ATLAS-X..."}
-            className={`relative w-full bg-[#050508] border rounded-2xl p-4 md:p-5 pr-16 outline-none text-sm transition-all resize-none max-h-60 custom-scrollbar ${useFastMode
-              ? 'border-[#ff00ff]/20 focus:border-[#ff00ff] shadow-[0_0_20px_rgba(255,0,255,0.05)]'
-              : 'border-white/10 focus:border-[#76b900] shadow-[0_0_20px_rgba(118,185,0,0.05)]'
-              }`}
-            style={{ height: '64px' }}
+            placeholder="How can Atlas-X assist you today?"
+            className="w-full bg-[#111113] border border-white/10 rounded-[1.8rem] py-5 px-7 pr-20 outline-none text-[16px] leading-relaxed transition-all resize-none custom-scrollbar shadow-2xl text-white focus:border-[#76b900]/40 placeholder:text-white/10 font-medium"
+            style={{ minHeight: '68px' }}
           />
           <button
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
-            className={`absolute right-3 bottom-3 md:right-4 md:bottom-4 w-10 h-10 text-black rounded-xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all disabled:opacity-20 disabled:grayscale ${useFastMode ? 'bg-[#ff00ff]' : 'bg-[#76b900]'
-              }`}
+            className="absolute right-3.5 bottom-3.5 w-11 h-11 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-xl disabled:opacity-10"
           >
-            <i className="fa-solid fa-arrow-up text-sm"></i>
+            <i className="fa-solid fa-arrow-up text-base"></i>
           </button>
         </div>
-        <p className="text-[8px] text-center mt-4 text-gray-700 orbitron tracking-[0.4em] uppercase opacity-50 font-bold">
-          Encrypted Neural Relay | {new Date().getFullYear()} Atlas-X Protocol
-        </p>
+        <div className="text-[10px] text-center mt-4 text-white/5 orbitron tracking-[0.4em] uppercase font-black pointer-events-none">
+          Atlas-X Intelligence Node | Neural Hub
+        </div>
       </div>
     </div>
   );

@@ -54,7 +54,8 @@ export enum AppView {
   KAGGLE_HUB = 'kaggle_hub',
   CAREER = 'career',
   SETTINGS = 'settings',
-  DEEP_RESEARCH = 'deep_research'
+  DEEP_RESEARCH = 'deep_research',
+  DESIGNER = 'designer'
 }
 
 export interface DataMetric {

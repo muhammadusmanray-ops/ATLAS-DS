@@ -1,12 +1,14 @@
 
 import React from 'react';
 import { AppView } from '../types';
+import { UIConfig } from './UIAdjuster';
 
 interface DashboardProps {
   onViewChange: (view: AppView) => void;
+  uiConfig?: UIConfig;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onViewChange, uiConfig }) => {
   const metrics = [
     { label: 'Neural Throughput', value: '42.8 GB/s', trend: '+5.4', color: 'text-[#76b900]', glow: 'shadow-[#76b900]/20' },
     { label: 'Intelligence Index', value: '98.4%', trend: '+0.2%', color: 'text-[#00f3ff]', glow: 'shadow-[#00f3ff]/20' },
@@ -28,7 +30,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
   ];
 
   return (
-    <div className="h-full overflow-y-auto custom-scrollbar flex flex-col p-8 bg-[#020204] relative selection:bg-[#76b900] selection:text-black">
+    <div className="h-full flex flex-col p-8 bg-[#010102] relative selection:bg-[#76b900] selection:text-black overflow-y-auto custom-scrollbar">
       {/* HUD Grid Overlay */}
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
         style={{ backgroundImage: 'linear-gradient(#76b900 1px, transparent 1px), linear-gradient(90deg, #76b900 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>

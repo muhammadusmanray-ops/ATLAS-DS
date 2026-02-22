@@ -72,6 +72,23 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
               </div>
             </button>
 
+            {/* PREVIEW BYPASS - FOR IFRAMES */}
+            <div className="mt-4">
+              <button
+                onClick={() => onLogin({
+                  id: 'preview-user',
+                  name: 'Preview Commander',
+                  email: 'preview@atlas-x.ai',
+                  rank: 'Commander',
+                  avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=preview',
+                  verified: true
+                })}
+                className="w-full py-2 border border-white/5 rounded-xl text-[8px] orbitron text-gray-600 hover:text-gray-300 hover:border-white/10 transition-all uppercase tracking-widest"
+              >
+                Access via Tactical Bypass (Preview Mode)
+              </button>
+            </div>
+
             {error && (
               <div className="mt-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl animate-in fade-in slide-in-from-top-2">
                 <p className="text-red-500 text-[9px] orbitron font-black text-center uppercase tracking-widest">

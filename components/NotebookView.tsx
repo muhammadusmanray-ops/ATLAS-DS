@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { NotebookCell } from '../types';
 import { llmAdapter } from '../services/llm';
@@ -96,10 +95,8 @@ const NotebookView: React.FC = () => {
     try {
       let output = '';
       if (executionMode === 'real') {
-        // REAL PYTHON EXECUTION
         const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         const PROXY_URL = isLocal ? 'http://localhost:3001' : '';
-
         const response = await fetch(`${PROXY_URL}/api/execute-python`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -108,40 +105,31 @@ const NotebookView: React.FC = () => {
             workingDir: isLocal ? 'local-env' : '/tmp'
           })
         });
-
         const result = await response.json();
-
         if (result.success) {
           output = result.output || 'Code executed successfully (no output)';
         } else {
           output = `ERROR:\n${result.error || result.stderr}`;
         }
       } else {
-        // AI MODE (Original Grok simulation)
         const previousCode = cells
           .slice(0, cellIndex)
           .filter(c => c.type === 'code')
           .map(c => c.content)
           .join('\n');
-
         const sysPrompt = `ACT AS A TACTICAL PYTHON KERNEL. 
         CONTEXT (Simulated Memory):
         ${previousCode}
-
         TASK: Execute the code below.
-        
         RULES:
         1. If the result is a Table/DataFrame, format it as a markdown table.
         2. If you find new variables, list them at the END of your response in this JSON format:
            [DATA_VARS]: [{"name": "var_name", "type": "str/int/df", "value": "preview"}]
         3. OUTPUT ONLY THE EXECUTION RESULT. No conversational text.
-        
         ENGINE: Llama-4 Maverick Node.`;
 
         const res = await llmAdapter.chat(cell.content, sysPrompt);
         const text = res?.text || "KERNEL_PANIC: Connection lost.";
-
-        // Parse Variables if present
         const varMatch = text.match(/\[DATA_VARS\]:\s*(\[.*\])/);
         output = text.replace(/\[DATA_VARS\]:.*$/, '').trim();
 
@@ -161,7 +149,8 @@ const NotebookView: React.FC = () => {
             console.error('Failed to parse variables:', e);
           }
         }
-      } setCells(prev => {
+      }
+      setCells(prev => {
         const newCells = [...prev];
         newCells[cellIndex].isExecuting = false;
         newCells[cellIndex].output = output;
@@ -194,7 +183,6 @@ const NotebookView: React.FC = () => {
   };
 
   const handleDbDataLoaded = (data: any[], query: string) => {
-    // Inject data into a new cell
     const newCell: NotebookCell = {
       id: Date.now().toString(),
       type: 'code',
@@ -223,7 +211,6 @@ const NotebookView: React.FC = () => {
       const sysPrompt = `ACT AS ATLAS SCIENTIFIC ADVISOR. 
       CURRENT NOTEBOOK STATE:
       ${notebookContext}
-      
       TASK: Answer the Commander about "What is happening" in this lab or "How everything was done". Keep it technical yet tactical. Use Roman Urdu/English mix where appropriate.`;
 
       const res = await llmAdapter.chat(userMsg, sysPrompt);
@@ -236,7 +223,7 @@ const NotebookView: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col bg-[#050508] text-gray-300 font-mono text-sm relative">
+    <div className="flex flex-col h-full bg-[#050508] text-gray-300 font-mono text-sm relative overflow-hidden">
       <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={{ backgroundImage: 'linear-gradient(#76b900 1px, transparent 1px), linear-gradient(90deg, #76b900 1px, transparent 1px)', backgroundSize: '60px 60px' }}></div>
 
       {/* TOP HEADER / TOOLBAR */}
@@ -246,8 +233,6 @@ const NotebookView: React.FC = () => {
             <div className="w-2 h-2 rounded-full bg-[#76b900] shadow-[0_0_10px_#76b900] animate-pulse"></div>
             <span className="text-xs font-black orbitron text-white uppercase tracking-[0.2em]">Quantum_Data_v2</span>
           </div>
-
-          {/* Mobile Sidebar Toggles */}
           <div className="flex gap-2 md:hidden">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -257,30 +242,22 @@ const NotebookView: React.FC = () => {
             </button>
           </div>
         </div>
-
         <div className="hidden md:block h-6 w-[1px] bg-white/10 mx-2"></div>
-
         <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
           <button onClick={() => addCell('code')} className="whitespace-nowrap px-3 md:px-4 py-1.5 rounded-lg bg-white/5 border border-white/5 hover:bg-[#76b900]/20 hover:text-[#76b900] transition-all text-[9px] md:text-[10px] orbitron font-bold uppercase"><i className="fa-solid fa-code mr-2"></i>+ Code</button>
           <button onClick={() => addCell('markdown')} className="whitespace-nowrap px-3 md:px-4 py-1.5 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-all text-[9px] md:text-[10px] orbitron font-bold uppercase"><i className="fa-solid fa-file-lines mr-2"></i>+ Mark</button>
         </div>
-
         <div className="flex-1"></div>
-
         <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 w-full md:w-auto justify-end">
           <button onClick={clearNotebook} className="whitespace-nowrap px-3 py-1.5 rounded-lg border border-red-500/20 text-red-500/60 hover:bg-red-500/10 transition-all text-[8px] orbitron font-bold uppercase"><i className="fa-solid fa-eraser mr-1"></i> Wipe</button>
-
           <label className="whitespace-nowrap px-3 md:px-4 py-1.5 rounded-lg bg-green-600/10 text-green-400 border border-green-500/30 hover:bg-green-600/20 cursor-pointer transition-all text-[9px] md:text-[10px] orbitron font-bold uppercase flex items-center gap-2">
             <i className="fa-solid fa-file-csv"></i> Ingest
             <input type="file" accept=".csv" className="hidden" onChange={handleCSVUpload} />
           </label>
-
           <button onClick={() => setIsDbModalOpen(true)} className="whitespace-nowrap px-3 md:px-4 py-1.5 rounded-lg bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600/30 transition-all text-[9px] md:text-[10px] orbitron font-bold uppercase flex items-center gap-2">
             <i className="fa-solid fa-database"></i> SQL Connect
           </button>
-
           <div className="hidden md:block h-6 w-[1px] bg-white/10 mx-2"></div>
-
           <button
             onClick={() => setIsAssistantOpen(!isAssistantOpen)}
             className={`p-2 px-4 rounded-lg transition-all flex items-center gap-2 orbitron font-black text-[10px] uppercase ${isAssistantOpen ? 'bg-green-500 text-black' : 'bg-white/5 text-gray-500 hover:text-green-500'}`}
@@ -288,7 +265,6 @@ const NotebookView: React.FC = () => {
             <i className="fa-solid fa-microchip"></i>
             <span className="hidden lg:inline">Advisor</span>
           </button>
-
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className={`hidden md:block p-2 rounded-lg transition-all ${isSidebarOpen ? 'bg-[#76b900]/20 text-[#76b900]' : 'bg-white/5 text-gray-600'}`}
@@ -301,98 +277,106 @@ const NotebookView: React.FC = () => {
 
       <div className="flex-1 flex overflow-hidden">
         {/* CELLS MAIN AREA */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-10 space-y-6 md:space-y-10 relative z-10">
-          <div className="max-w-5xl mx-auto">
-            {cells.length === 0 && (
-              <div className="py-20 flex flex-col items-center justify-center opacity-10 text-center">
-                <i className="fa-solid fa-dna text-[120px] mb-8 text-green-500"></i>
-                <h3 className="orbitron font-black text-xl tracking-[0.6em] uppercase">Laboratory Empty</h3>
-                <p className="mt-4 text-xs tracking-widest uppercase">Inject code or text to begin analysis.</p>
-              </div>
-            )}
-            {cells.map((cell, index) => (
-              <div key={cell.id}
-                className={`group relative rounded-[32px] overflow-hidden transition-all duration-500 ${activeCell === cell.id ? 'bg-white/[0.03] border border-white/10 shadow-2xl' : 'border border-transparent'}`}
-              >
-                {/* CELL SIDE TOOLS */}
-                <div className="absolute left-4 top-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                  {cell.type === 'code' && (
-                    <button
-                      onClick={() => executeCell(cell.id)}
-                      disabled={cell.isExecuting}
-                      className="w-10 h-10 rounded-2xl bg-[#0a0a0f] border border-white/5 hover:border-[#76b900] text-[#76b900] flex items-center justify-center transition-all hover:scale-110"
-                    >
-                      {cell.isExecuting ? <i className="fa-solid fa-atom fa-spin"></i> : <i className="fa-solid fa-play text-xs"></i>}
-                    </button>
-                  )}
-                  <button onClick={() => deleteCell(cell.id)} className="w-10 h-10 rounded-2xl bg-[#0a0a0f] border border-white/5 hover:border-red-500 text-red-500 flex items-center justify-center transition-all hover:scale-110">
-                    <i className="fa-solid fa-trash-can text-xs"></i>
-                  </button>
+        <div className="flex-1 flex flex-col min-h-0 min-w-0 relative">
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-10 space-y-6 md:space-y-10 relative z-10 touch-pan-y">
+            <div className="max-w-5xl mx-auto">
+              {cells.length === 0 && (
+                <div className="py-20 flex flex-col items-center justify-center opacity-10 text-center">
+                  <i className="fa-solid fa-dna text-[120px] mb-8 text-green-500"></i>
+                  <h3 className="orbitron font-black text-xl tracking-[0.6em] uppercase">Laboratory Empty</h3>
+                  <p className="mt-4 text-xs tracking-widest uppercase">Inject code or text to begin analysis.</p>
                 </div>
-
-                {/* INPUT AREA */}
-                <div
-                  className={`p-6 pl-20 ${cell.type === 'markdown' ? 'bg-[#0a0a0f]/40' : 'bg-[#0a0a0f]'}`}
-                  onClick={() => setActiveCell(cell.id)}
+              )}
+              {cells.map((cell, index) => (
+                <div key={cell.id}
+                  className={`group relative rounded-[32px] overflow-hidden transition-all duration-500 ${activeCell === cell.id ? 'bg-white/[0.03] border border-white/10 shadow-2xl' : 'border border-transparent'}`}
                 >
-                  <div className="flex items-center gap-3 mb-4 opacity-40 group-hover:opacity-100 transition-opacity">
-                    <span className={`text-[8px] orbitron font-black px-3 py-1 rounded-full border ${cell.type === 'code' ? 'border-[#76b900] text-[#76b900]' : 'border-gray-500 text-gray-500'}`}>
-                      {cell.type === 'code' ? `UNIT_NODE_0${index + 1}` : `LOG_NODE_0${index + 1}`}
-                    </span>
-                    {cell.type === 'code' && <div className="h-[1px] flex-1 bg-gradient-to-r from-[#76b900]/20 to-transparent"></div>}
+                  <div className="absolute left-4 top-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                    {cell.type === 'code' && (
+                      <button
+                        onClick={() => executeCell(cell.id)}
+                        disabled={cell.isExecuting}
+                        className="w-10 h-10 rounded-2xl bg-[#0a0a0f] border border-white/5 hover:border-[#76b900] text-[#76b900] flex items-center justify-center transition-all hover:scale-110"
+                      >
+                        {cell.isExecuting ? <i className="fa-solid fa-atom fa-spin"></i> : <i className="fa-solid fa-play text-xs"></i>}
+                      </button>
+                    )}
+                    <button onClick={() => deleteCell(cell.id)} className="w-10 h-10 rounded-2xl bg-[#0a0a0f] border border-white/5 hover:border-red-500 text-red-500 flex items-center justify-center transition-all hover:scale-110">
+                      <i className="fa-solid fa-trash-can text-xs"></i>
+                    </button>
                   </div>
 
-                  <textarea
-                    value={cell.content}
-                    onChange={(e) => updateCellContent(cell.id, e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && e.shiftKey) {
-                        e.preventDefault();
-                        executeCell(cell.id);
-                      }
-                    }}
-                    className={`w-full bg-transparent outline-none resize-none min-h-[50px] transition-all duration-300 selection:bg-green-500 selection:text-black ${cell.type === 'markdown' ? 'text-gray-400 font-sans text-lg' : 'text-green-50/80 font-mono text-sm leading-relaxed'}`}
-                    spellCheck={false}
-                    onInput={(e: any) => {
-                      if (e.target.scrollHeight > 100) {
+                  <div className={`p-6 pl-20 ${cell.type === 'markdown' ? 'bg-[#0a0a0f]/40' : 'bg-[#0a0a0f]'}`} onClick={() => setActiveCell(cell.id)}>
+                    <div className="flex items-center gap-3 mb-4 opacity-40 group-hover:opacity-100 transition-opacity">
+                      <span className={`text-[8px] orbitron font-black px-3 py-1 rounded-full border ${cell.type === 'code' ? 'border-[#76b900] text-[#76b900]' : 'border-gray-500 text-gray-500'}`}>
+                        {cell.type === 'code' ? `UNIT_NODE_0${index + 1}` : `LOG_NODE_0${index + 1}`}
+                      </span>
+                      {cell.type === 'code' && <div className="h-[1px] flex-1 bg-gradient-to-r from-[#76b900]/20 to-transparent"></div>}
+                    </div>
+                    <textarea
+                      value={cell.content}
+                      onChange={(e) => updateCellContent(cell.id, e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && e.shiftKey) {
+                          e.preventDefault();
+                          executeCell(cell.id);
+                        }
+                      }}
+                      className={`w-full bg-transparent outline-none resize-none min-h-[50px] transition-all duration-300 selection:bg-green-500 selection:text-black ${cell.type === 'markdown' ? 'text-gray-400 font-sans text-lg' : 'text-green-50/80 font-mono text-sm leading-relaxed'}`}
+                      spellCheck={false}
+                      onInput={(e: any) => {
                         e.target.style.height = 'auto';
                         e.target.style.height = (e.target.scrollHeight + 10) + 'px';
-                      }
-                    }}
-                    placeholder={cell.type === 'code' ? 'print("System Online") # Shift + Enter' : '# Entry Title...'}
-                  />
+                      }}
+                      placeholder={cell.type === 'code' ? 'print("System Online") # Shift + Enter' : '# Entry Title...'}
+                    />
+                  </div>
+
+                  {cell.output && (
+                    <div className="bg-black/60 border-t border-white/5 p-8 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 p-4 opacity-[0.03]">
+                        <i className="fa-solid fa-microchip text-8xl text-green-500"></i>
+                      </div>
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                        <span className="text-[9px] orbitron font-black text-gray-500 tracking-widest uppercase">Telemetry Stream 0{index + 1}</span>
+                      </div>
+                      <div className="overflow-x-auto custom-scrollbar">
+                        <pre className={`text-xs whitespace-pre-wrap font-mono leading-relaxed bg-green-500/[0.03] p-6 rounded-2xl border border-green-500/10 text-green-400/90 selection:bg-green-500 selection:text-black`}>
+                          {cell.output}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
                 </div>
-
-                {/* OUTPUT AREA */}
-                {cell.output && (
-                  <div className="bg-black/60 border-t border-white/5 p-8 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-4 opacity-[0.03]">
-                      <i className="fa-solid fa-microchip text-8xl text-green-500"></i>
-                    </div>
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                      <span className="text-[9px] orbitron font-black text-gray-500 tracking-widest uppercase">Telemetry Stream 0{index + 1}</span>
-                    </div>
-
-                    <div className="overflow-x-auto custom-scrollbar">
-                      <pre className={`text-xs whitespace-pre-wrap font-mono leading-relaxed bg-green-500/[0.03] p-6 rounded-2xl border border-green-500/10 text-green-400/90 selection:bg-green-500 selection:text-black`}>
-                        {cell.output}
-                      </pre>
+              ))}
+              <div className="relative group">
+                <div className="absolute -inset-1 bg-gradient-to-r from-[#76b900]/20 to-transparent rounded-[3rem] blur-2xl opacity-0 group-hover:opacity-100 transition-all duration-700"></div>
+                <button
+                  onClick={() => addCell('code')}
+                  className="w-full py-20 flex flex-col items-center justify-center rounded-[3rem] border border-white/5 bg-[#0a0a0b]/40 hover:bg-[#76b900]/5 hover:border-[#76b900]/30 transition-all relative overflow-hidden group shadow-2xl"
+                >
+                  <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.02] mix-blend-overlay"></div>
+                  <div className="w-20 h-20 rounded-2xl bg-white/5 flex items-center justify-center text-gray-700 group-hover:text-[#76b900] group-hover:scale-110 transition-all duration-500 border border-white/10 group-hover:border-[#76b900]/40 shadow-inner">
+                    <i className="fa-solid fa-microchip text-3xl"></i>
+                  </div>
+                  <div className="mt-6 flex flex-col items-center gap-2">
+                    <span className="text-[10px] orbitron font-black text-gray-500 group-hover:text-white uppercase tracking-[0.6em] transition-colors italic">Inject_Quantum_Node</span>
+                    <div className="flex gap-1.5 opacity-20 group-hover:opacity-100 transition-opacity">
+                      <div className="w-1 h-1 rounded-full bg-[#76b900]"></div>
+                      <div className="w-1 h-1 rounded-full bg-[#76b900]"></div>
+                      <div className="w-1 h-1 rounded-full bg-[#76b900]"></div>
                     </div>
                   </div>
-                )}
-              </div>
-            ))}
 
-            <button
-              onClick={() => addCell('code')}
-              className="w-full py-16 flex flex-col items-center justify-center rounded-[40px] border-2 border-dashed border-white/5 hover:border-[#76b900]/30 hover:bg-[#76b900]/5 transition-all group"
-            >
-              <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center text-gray-600 group-hover:text-[#76b900] group-hover:scale-110 transition-all duration-500 border border-transparent group-hover:border-[#76b900]/20">
-                <i className="fa-solid fa-dna text-2xl"></i>
+                  {/* Tactical Borders */}
+                  <div className="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-white/10 group-hover:border-[#76b900]/40 transition-colors"></div>
+                  <div className="absolute top-4 right-4 w-4 h-4 border-t-2 border-r-2 border-white/10 group-hover:border-[#76b900]/40 transition-colors"></div>
+                  <div className="absolute bottom-4 left-4 w-4 h-4 border-b-2 border-l-2 border-white/10 group-hover:border-[#76b900]/40 transition-colors"></div>
+                  <div className="absolute bottom-4 right-4 w-4 h-4 border-b-2 border-r-2 border-white/10 group-hover:border-[#76b900]/40 transition-colors"></div>
+                </button>
               </div>
-              <span className="mt-4 text-[9px] orbitron font-black text-gray-600 group-hover:text-white uppercase tracking-[0.5em]">Inject_Neural_Node</span>
-            </button>
+            </div>
           </div>
         </div>
 
@@ -406,14 +390,12 @@ const NotebookView: React.FC = () => {
                 <div className="w-1.5 h-1.5 rounded-full bg-gray-800"></div>
               </div>
             </div>
-
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
               <div className="space-y-4">
                 <div className="flex justify-between items-end border-b border-white/5 pb-2">
                   <span className="text-[8px] font-black text-[#76b900] orbitron uppercase tracking-widest">Variable_Matrix</span>
                   <span className="text-[7px] text-gray-600 uppercase font-mono tracking-widest">RAM_SYNC</span>
                 </div>
-
                 {variables.length > 0 ? (
                   <div className="space-y-3">
                     {variables.map((v, i) => (
@@ -436,16 +418,6 @@ const NotebookView: React.FC = () => {
                 )}
               </div>
             </div>
-
-            <div className="p-6 bg-black/40 border-t border-white/5">
-              <div className="flex justify-between text-[7px] orbitron font-bold text-gray-600 mb-2 uppercase tracking-widest">
-                <span>Core_Cognitive_Load</span>
-                <span className="text-[#76b900]">12.4%</span>
-              </div>
-              <div className="h-1 w-full bg-gray-900 rounded-full overflow-hidden">
-                <div className="h-full bg-[#76b900] w-[12.4%] shadow-[0_0_10px_#76b900]"></div>
-              </div>
-            </div>
           </div>
         )}
 
@@ -461,7 +433,6 @@ const NotebookView: React.FC = () => {
                 <i className="fa-solid fa-xmark"></i>
               </button>
             </div>
-
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-4">
               {assistantMessages.map((msg, i) => (
                 <div key={i} className={`p-5 rounded-2xl text-[11px] leading-relaxed ${msg.role === 'user' ? 'bg-white/5 ml-8 border border-white/10' : 'bg-green-500/10 mr-8 border border-green-500/10 text-green-100'}`}>
@@ -477,7 +448,6 @@ const NotebookView: React.FC = () => {
                 </div>
               )}
             </div>
-
             <div className="p-6 bg-black/40 border-t border-white/5">
               <div className="flex gap-2">
                 <input
