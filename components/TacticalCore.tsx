@@ -109,7 +109,9 @@ const TacticalCore = ({ messages, setMessages, uiConfig }: any) => {
                   <div className={`flex items-center gap-2 px-1 opacity-20 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <span className="text-[8px] font-black orbitron tracking-tighter uppercase">{msg.role === 'user' ? 'Commander' : 'Atlas-X'}</span>
                     <div className="w-1 h-1 rounded-full bg-white"></div>
-                    <span className="text-[8px] font-mono">{msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span className="text-[8px] font-mono">
+                      {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
                   </div>
                 </div>
               </div>
