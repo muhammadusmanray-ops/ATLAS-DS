@@ -9,7 +9,7 @@ import { authService } from './services/authService';
 
 // MISSION CRITICAL: Standard Load for core stability
 import Dashboard from './components/Dashboard';
-import ChatView from './components/ChatView';
+import TacticalCore from './components/TacticalCore';
 import SettingsView from './components/SettingsView';
 import SecurityView from './components/SecurityView';
 
@@ -41,8 +41,12 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const [uiConfig, setUiConfig] = useState<UIConfig>(() => {
-    const saved = localStorage.getItem('ATLAS_UI_CONFIG');
-    if (saved) return JSON.parse(saved);
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('ATLAS_UI_CONFIG') : null;
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn("STORAGE_LINK_FAILED: Using default protocols.");
+    }
     return {
       chatInputBottom: 40,
       sidebarWidth: 320,
@@ -363,7 +367,7 @@ const App: React.FC = () => {
               <Suspense fallback={GlobalSectorFallback}>
                 {currentView === AppView.DASHBOARD && <Dashboard onViewChange={setCurrentView} uiConfig={uiConfig} />}
                 {/* SYNC_PROTOCOL: Tactical Core Prop Alignment Active */}
-                {currentView === AppView.CHAT && <ChatView messages={messages} setMessages={setMessages} uiConfig={uiConfig} />}
+                {currentView === AppView.CHAT && <TacticalCore messages={messages} setMessages={setMessages} uiConfig={uiConfig} />}
                 {currentView === AppView.SETTINGS && <SettingsView user={user} onUpdateUser={handleUpdateUser} onClearChat={handleClearChat} />}
                 {currentView === AppView.SECURITY && <SecurityView />}
                 {currentView === AppView.NOTEBOOK && <NotebookView />}
