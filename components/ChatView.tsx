@@ -10,7 +10,7 @@ export interface TacticalChatProps {
   uiConfig: UIConfig;
 }
 
-const ChatView = ({ messages, setMessages, uiConfig }: TacticalChatProps) => {
+const ChatView = ({ messages, setMessages, uiConfig }: { messages: Message[]; setMessages: any; uiConfig: any }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [useFastMode, setUseFastMode] = useState(false);
